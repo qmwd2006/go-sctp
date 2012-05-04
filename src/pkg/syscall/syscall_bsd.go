@@ -636,3 +636,42 @@ func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, e
 func Munmap(b []byte) (err error) {
 	return mapper.Munmap(b)
 }
+
+func SCTPReceiveMessage(fd int, p []byte) (n int, from Sockaddr, rinfo *SCTPRcvInfo, flags int, err error) {
+
+  // Message header
+  var msg Msghdr
+  var rsa RawSockaddrAny
+  msg.Name = (*byte)(unsafe.Pointer(&rsa))
+  msg.Namelen = uint32(SizeofSockaddrAny)
+  // Create struct for message
+  var iov Iovec
+  if len(p) > 0 {
+    iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+    iov.SetLen(len(p))
+  }
+  msg.Iov = &iov
+  msg.Iovlen = 1
+
+  // Message control header
+  var cmsg *Cmsghdr
+
+  controlBuffer := make([]byte, SizeofCmsghdr + SizeofSCTPRcvInfo)
+  data := (controlBuffer[cmsgAlignOf(SizeofCmsghdr):])
+  rinfo = (*SCTPRcvInfo)(unsafe.Pointer(&data[0]))
+  cmsg = (*Cmsghdr)(unsafe.Pointer(&controlBuffer[0]))
+  cmsg.Level = IPPROTO_SCTP
+  cmsg.Type = SCTP_SNDRCV
+  msg.Control = (*byte)(unsafe.Pointer(&controlBuffer[0]))
+  msg.SetControllen(len(controlBuffer))
+
+  flags = 0;
+  n, err = recvmsg(fd, &msg, flags)
+
+  if err != nil {
+    return 0, nil, nil, 0, err
+  }
+  from, err = anyToSockaddr(&rsa)
+  return
+}
+
