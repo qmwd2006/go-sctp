@@ -55,10 +55,6 @@ type Rlimit struct {
 type _Gid_t uint32
 
 const (
-	O_CLOEXEC = 0
-)
-
-const (
 	S_IFMT   = 0xf000
 	S_IFIFO  = 0x1000
 	S_IFCHR  = 0x2000
@@ -76,23 +72,23 @@ const (
 )
 
 type Stat_t struct {
-	Dev      uint32
-	Ino      uint32
-	Mode     uint16
-	Nlink    uint16
-	Uid      uint32
-	Gid      uint32
-	Rdev     uint32
-	Atim     Timespec
-	Mtim     Timespec
-	Ctim     Timespec
-	Size     int64
-	Blocks   int64
-	Blksize  uint32
-	Flags    uint32
-	Gen      uint32
-	Lspare   int32
-	Birthtim Timespec
+	Dev           uint32
+	Ino           uint32
+	Mode          uint16
+	Nlink         uint16
+	Uid           uint32
+	Gid           uint32
+	Rdev          uint32
+	Atimespec     Timespec
+	Mtimespec     Timespec
+	Ctimespec     Timespec
+	Size          int64
+	Blocks        int64
+	Blksize       uint32
+	Flags         uint32
+	Gen           uint32
+	Lspare        int32
+	Birthtim      Timespec
 }
 
 type Statfs_t struct {
