@@ -106,6 +106,7 @@ const (
 	BIOCGRTIMEOUT                     = 0x4010426e
 	BIOCGSEESENT                      = 0x40044276
 	BIOCGSTATS                        = 0x4008426f
+	BIOCGTSTAMP                       = 0x40044283
 	BIOCIMMEDIATE                     = 0x80044270
 	BIOCLOCK                          = 0x2000427a
 	BIOCPROMISC                       = 0x20004269
@@ -123,6 +124,7 @@ const (
 	BIOCSRSIG                         = 0x80044273
 	BIOCSRTIMEOUT                     = 0x8010426d
 	BIOCSSEESENT                      = 0x80044277
+	BIOCSTSTAMP                       = 0x80044284
 	BIOCVERSION                       = 0x40044271
 	BPF_A                             = 0x10
 	BPF_ABS                           = 0x20
@@ -168,6 +170,25 @@ const (
 	BPF_SUB                           = 0x10
 	BPF_TAX                           = 0x0
 	BPF_TXA                           = 0x80
+	BPF_T_BINTIME                     = 0x2
+	BPF_T_BINTIME_FAST                = 0x102
+	BPF_T_BINTIME_MONOTONIC           = 0x202
+	BPF_T_BINTIME_MONOTONIC_FAST      = 0x302
+	BPF_T_FAST                        = 0x100
+	BPF_T_FLAG_MASK                   = 0x300
+	BPF_T_FORMAT_MASK                 = 0x3
+	BPF_T_MICROTIME                   = 0x0
+	BPF_T_MICROTIME_FAST              = 0x100
+	BPF_T_MICROTIME_MONOTONIC         = 0x200
+	BPF_T_MICROTIME_MONOTONIC_FAST    = 0x300
+	BPF_T_MONOTONIC                   = 0x200
+	BPF_T_MONOTONIC_FAST              = 0x300
+	BPF_T_NANOTIME                    = 0x1
+	BPF_T_NANOTIME_FAST               = 0x101
+	BPF_T_NANOTIME_MONOTONIC          = 0x201
+	BPF_T_NANOTIME_MONOTONIC_FAST     = 0x301
+	BPF_T_NONE                        = 0x3
+	BPF_T_NORMAL                      = 0x0
 	BPF_W                             = 0x0
 	BPF_X                             = 0x8
 	CTL_MAXNAME                       = 0x18
@@ -175,6 +196,7 @@ const (
 	DLT_A429                          = 0xb8
 	DLT_A653_ICM                      = 0xb9
 	DLT_AIRONET_HEADER                = 0x78
+	DLT_AOS                           = 0xde
 	DLT_APPLE_IP_OVER_IEEE1394        = 0x8a
 	DLT_ARCNET                        = 0x7
 	DLT_ARCNET_LINUX                  = 0x81
@@ -187,11 +209,13 @@ const (
 	DLT_BLUETOOTH_HCI_H4              = 0xbb
 	DLT_BLUETOOTH_HCI_H4_WITH_PHDR    = 0xc9
 	DLT_CAN20B                        = 0xbe
+	DLT_CAN_SOCKETCAN                 = 0xe3
 	DLT_CHAOS                         = 0x5
 	DLT_CHDLC                         = 0x68
 	DLT_CISCO_IOS                     = 0x76
 	DLT_C_HDLC                        = 0x68
 	DLT_C_HDLC_WITH_DIR               = 0xcd
+	DLT_DECT                          = 0xdd
 	DLT_DOCSIS                        = 0x8f
 	DLT_ECONET                        = 0x73
 	DLT_EN10MB                        = 0x1
@@ -200,6 +224,8 @@ const (
 	DLT_ERF                           = 0xc5
 	DLT_ERF_ETH                       = 0xaf
 	DLT_ERF_POS                       = 0xb0
+	DLT_FC_2                          = 0xe0
+	DLT_FC_2_WITH_FRAME_DELIMS        = 0xe1
 	DLT_FDDI                          = 0xa
 	DLT_FLEXRAY                       = 0xd2
 	DLT_FRELAY                        = 0x6b
@@ -209,6 +235,8 @@ const (
 	DLT_GPF_F                         = 0xab
 	DLT_GPF_T                         = 0xaa
 	DLT_GPRS_LLC                      = 0xa9
+	DLT_GSMTAP_ABIS                   = 0xda
+	DLT_GSMTAP_UM                     = 0xd9
 	DLT_HHDLC                         = 0x79
 	DLT_IBM_SN                        = 0x92
 	DLT_IBM_SP                        = 0x91
@@ -224,6 +252,9 @@ const (
 	DLT_IPFILTER                      = 0x74
 	DLT_IPMB                          = 0xc7
 	DLT_IPMB_LINUX                    = 0xd1
+	DLT_IPNET                         = 0xe2
+	DLT_IPV4                          = 0xe4
+	DLT_IPV6                          = 0xe5
 	DLT_IP_OVER_FC                    = 0x7a
 	DLT_JUNIPER_ATM1                  = 0x89
 	DLT_JUNIPER_ATM2                  = 0x87
@@ -247,6 +278,7 @@ const (
 	DLT_LAPB_WITH_DIR                 = 0xcf
 	DLT_LAPD                          = 0xcb
 	DLT_LIN                           = 0xd4
+	DLT_LINUX_EVDEV                   = 0xd8
 	DLT_LINUX_IRDA                    = 0x90
 	DLT_LINUX_LAPD                    = 0xb1
 	DLT_LINUX_PPP_WITHDIRECTION       = 0xa6
@@ -255,6 +287,7 @@ const (
 	DLT_LTALK                         = 0x72
 	DLT_MFR                           = 0xb6
 	DLT_MOST                          = 0xd3
+	DLT_MPLS                          = 0xdb
 	DLT_MTP2                          = 0x8c
 	DLT_MTP2_WITH_PHDR                = 0x8b
 	DLT_MTP3                          = 0x8d
@@ -284,6 +317,7 @@ const (
 	DLT_TZSP                          = 0x80
 	DLT_USB                           = 0xba
 	DLT_USB_LINUX                     = 0xbd
+	DLT_USB_LINUX_MMAPPED             = 0xdc
 	DLT_USER0                         = 0x93
 	DLT_USER1                         = 0x94
 	DLT_USER10                        = 0x9d
@@ -300,6 +334,7 @@ const (
 	DLT_USER7                         = 0x9a
 	DLT_USER8                         = 0x9b
 	DLT_USER9                         = 0x9c
+	DLT_WIHART                        = 0xdf
 	DLT_X2E_SERIAL                    = 0xd5
 	DLT_X2E_XORAYA                    = 0xd6
 	DT_BLK                            = 0x6
@@ -372,7 +407,8 @@ const (
 	IFF_ALLMULTI                      = 0x200
 	IFF_ALTPHYS                       = 0x4000
 	IFF_BROADCAST                     = 0x2
-	IFF_CANTCHANGE                    = 0x208f72
+	IFF_CANTCHANGE                    = 0x218f72
+	IFF_CANTCONFIG                    = 0x10000
 	IFF_DEBUG                         = 0x4
 	IFF_DRV_OACTIVE                   = 0x400
 	IFF_DRV_RUNNING                   = 0x40
@@ -418,7 +454,6 @@ const (
 	IFT_BGPPOLICYACCOUNTING           = 0xa2
 	IFT_BRIDGE                        = 0xd1
 	IFT_BSC                           = 0x53
-	IFT_CARP                          = 0xf8
 	IFT_CCTEMUL                       = 0x3d
 	IFT_CEPT                          = 0x13
 	IFT_CES                           = 0x85
@@ -486,6 +521,7 @@ const (
 	IFT_IEEE8023ADLAG                 = 0xa1
 	IFT_IFGSN                         = 0x91
 	IFT_IMT                           = 0xbe
+	IFT_INFINIBAND                    = 0xc7
 	IFT_INTERLEAVE                    = 0x7c
 	IFT_IP                            = 0x7e
 	IFT_IPFORWARD                     = 0x8e
@@ -616,6 +652,7 @@ const (
 	IN_CLASSD_NET                     = 0xf0000000
 	IN_CLASSD_NSHIFT                  = 0x1c
 	IN_LOOPBACKNET                    = 0x7f
+	IN_RFC3021_MASK                   = 0xfffffffe
 	IPPROTO_3PC                       = 0x22
 	IPPROTO_ADFS                      = 0x44
 	IPPROTO_AH                        = 0x33
@@ -677,6 +714,7 @@ const (
 	IPPROTO_MAX                       = 0x100
 	IPPROTO_MAXID                     = 0x34
 	IPPROTO_MEAS                      = 0x13
+	IPPROTO_MH                        = 0x87
 	IPPROTO_MHRP                      = 0x30
 	IPPROTO_MICP                      = 0x5f
 	IPPROTO_MOBILE                    = 0x37
@@ -707,6 +745,7 @@ const (
 	IPPROTO_SCCSP                     = 0x60
 	IPPROTO_SCTP                      = 0x84
 	IPPROTO_SDRP                      = 0x2a
+	IPPROTO_SEND                      = 0x103
 	IPPROTO_SEP                       = 0x21
 	IPPROTO_SKIP                      = 0x39
 	IPPROTO_SPACER                    = 0x7fff
@@ -885,8 +924,9 @@ const (
 	NET_RT_DUMP                       = 0x1
 	NET_RT_FLAGS                      = 0x2
 	NET_RT_IFLIST                     = 0x3
+	NET_RT_IFLISTL                    = 0x5
 	NET_RT_IFMALIST                   = 0x4
-	NET_RT_MAXID                      = 0x5
+	NET_RT_MAXID                      = 0x6
 	NOTE_ATTRIB                       = 0x8
 	NOTE_CHILD                        = 0x4
 	NOTE_DELETE                       = 0x1
@@ -913,6 +953,7 @@ const (
 	O_ACCMODE                         = 0x3
 	O_APPEND                          = 0x8
 	O_ASYNC                           = 0x40
+	O_CLOEXEC                         = 0x100000
 	O_CREAT                           = 0x200
 	O_DIRECT                          = 0x10000
 	O_DIRECTORY                       = 0x20000
@@ -1008,6 +1049,8 @@ const (
 	RTV_SPIPE                         = 0x10
 	RTV_SSTHRESH                      = 0x20
 	RTV_WEIGHT                        = 0x100
+	RT_CACHING_CONTEXT                = 0x1
+	RT_DEFAULT_FIB                    = 0x0
 	RUSAGE_CHILDREN                   = -0x1
 	RUSAGE_SELF                       = 0x0
 	RUSAGE_THREAD                     = 0x1
@@ -1020,7 +1063,7 @@ const (
 	SHUT_WR                           = 0x1
 	SIOCADDMULTI                      = 0x80206931
 	SIOCADDRT                         = 0x8040720a
-	SIOCAIFADDR                       = 0x8040691a
+	SIOCAIFADDR                       = 0x8044692b
 	SIOCAIFGROUP                      = 0x80286987
 	SIOCALIFADDR                      = 0x8118691b
 	SIOCATMARK                        = 0x40047307
@@ -1040,6 +1083,7 @@ const (
 	SIOCGIFCONF                       = 0xc0106924
 	SIOCGIFDESCR                      = 0xc020692a
 	SIOCGIFDSTADDR                    = 0xc0206922
+	SIOCGIFFIB                        = 0xc020695c
 	SIOCGIFFLAGS                      = 0xc0206911
 	SIOCGIFGENERIC                    = 0xc020693a
 	SIOCGIFGMEMB                      = 0xc028698a
@@ -1071,6 +1115,7 @@ const (
 	SIOCSIFCAP                        = 0x8020691e
 	SIOCSIFDESCR                      = 0x80206929
 	SIOCSIFDSTADDR                    = 0x8020690e
+	SIOCSIFFIB                        = 0x8020695d
 	SIOCSIFFLAGS                      = 0x80206910
 	SIOCSIFGENERIC                    = 0x80206939
 	SIOCSIFLLADDR                     = 0x8020693c
@@ -1080,7 +1125,7 @@ const (
 	SIOCSIFMTU                        = 0x80206934
 	SIOCSIFNAME                       = 0x80206928
 	SIOCSIFNETMASK                    = 0x80206916
-	SIOCSIFPHYADDR                    = 0x80406946
+	SIOCSIFPHYADDR                    = 0x80446946
 	SIOCSIFPHYS                       = 0x80206936
 	SIOCSIFRVNET                      = 0xc020695b
 	SIOCSIFVNET                       = 0xc020695a
@@ -1113,6 +1158,8 @@ const (
 	SO_NO_OFFLOAD                     = 0x4000
 	SO_OOBINLINE                      = 0x100
 	SO_PEERLABEL                      = 0x1010
+	SO_PROTOCOL                       = 0x1016
+	SO_PROTOTYPE                      = 0x1016
 	SO_RCVBUF                         = 0x1002
 	SO_RCVLOWAT                       = 0x1004
 	SO_RCVTIMEO                       = 0x1006
@@ -1125,9 +1172,14 @@ const (
 	SO_TIMESTAMP                      = 0x400
 	SO_TYPE                           = 0x1008
 	SO_USELOOPBACK                    = 0x40
+	SO_USER_COOKIE                    = 0x1015
 	TCP_CA_NAME_MAX                   = 0x10
 	TCP_CONGESTION                    = 0x40
 	TCP_INFO                          = 0x20
+	TCP_KEEPCNT                       = 0x400
+	TCP_KEEPIDLE                      = 0x100
+	TCP_KEEPINIT                      = 0x80
+	TCP_KEEPINTVL                     = 0x200
 	TCP_MAXBURST                      = 0x4
 	TCP_MAXHLEN                       = 0x3c
 	TCP_MAXOLEN                       = 0x28
@@ -1137,7 +1189,7 @@ const (
 	TCP_MAX_WINSHIFT                  = 0xe
 	TCP_MD5SIG                        = 0x10
 	TCP_MINMSS                        = 0xd8
-	TCP_MSS                           = 0x200
+	TCP_MSS                           = 0x218
 	TCP_NODELAY                       = 0x1
 	TCP_NOOPT                         = 0x8
 	TCP_NOPUSH                        = 0x4
@@ -1227,6 +1279,7 @@ const (
 	EBADRPC         = Errno(0x48)
 	EBUSY           = Errno(0x10)
 	ECANCELED       = Errno(0x55)
+	ECAPMODE        = Errno(0x5e)
 	ECHILD          = Errno(0xa)
 	ECONNABORTED    = Errno(0x35)
 	ECONNREFUSED    = Errno(0x3d)
@@ -1250,7 +1303,7 @@ const (
 	EIO             = Errno(0x5)
 	EISCONN         = Errno(0x38)
 	EISDIR          = Errno(0x15)
-	ELAST           = Errno(0x5d)
+	ELAST           = Errno(0x5e)
 	ELOOP           = Errno(0x3e)
 	EMFILE          = Errno(0x18)
 	EMLINK          = Errno(0x1f)
@@ -1328,6 +1381,7 @@ const (
 	SIGIO     = Signal(0x17)
 	SIGIOT    = Signal(0x6)
 	SIGKILL   = Signal(0x9)
+	SIGLIBRT  = Signal(0x21)
 	SIGLWP    = Signal(0x20)
 	SIGPIPE   = Signal(0xd)
 	SIGPROF   = Signal(0x1b)
@@ -1445,6 +1499,7 @@ var errors = [...]string{
 	91: "link has been severed",
 	92: "protocol error",
 	93: "capabilities insufficient",
+	94: "not permitted in capability mode",
 }
 
 // Signal table
@@ -1481,4 +1536,5 @@ var signals = [...]string{
 	30: "user defined signal 1",
 	31: "user defined signal 2",
 	32: "unknown signal",
+	33: "unknown signal",
 }
