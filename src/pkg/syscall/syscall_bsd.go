@@ -675,3 +675,7 @@ func SCTPReceiveMessage(fd int, p []byte) (n int, from Sockaddr, rinfo *SCTPRcvI
   return
 }
 
+func SetsockoptSCTPInitMsg(fd, level, opt int, sinit *SCTPInitMsg) (err error) {
+  return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(sinit)), unsafe.Sizeof(*sinit))
+}
+

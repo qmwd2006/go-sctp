@@ -3,12 +3,10 @@
 package net
 
 import (
-	"fmt"
 	"os"
 //  "io"
 	"syscall"
 	"time"
-  "log"
 )
 
 
@@ -271,7 +269,6 @@ func ListenOneToOneSCTP(net string, laddr *SCTPAddr) (*SCTPListener, error) {
   if err != nil {
     return nil, err
   }
-  log.Println("ListenOneToOneSCTP sctpsock.go");
   err = syscall.Listen(fd.sysfd, listenerBacklog)
   if err != nil {
     closesocket(fd.sysfd)
@@ -365,7 +362,7 @@ func sockaddrToSCTP(sa syscall.Sockaddr) Addr {
 	default:
 		if sa != nil {
 			// Diagnose when we will turn a non-nil sockaddr into a nil.
-			panic(fmt.Sprintf("unexpected type in sockaddrToSCTP: %T", sa))
+			panic("unexpected type in sockaddrToSCTP")
 		}
 	}
 	return nil
