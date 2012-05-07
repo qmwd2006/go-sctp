@@ -668,12 +668,6 @@ func SCTPReceiveMessage(fd int, p []byte) (n int, from Sockaddr, rinfo *SCTPRcvI
   flags = 0;
   n, err = recvmsg(fd, &msg, flags)
 
-  // vv DEBUG
-  println(rinfo.Sid);
-  println(rinfo.Ssn);
-  println(rinfo.Ppid);
-  println(cmsg);
-  // ^^ DEBUG
   if err != nil {
     return 0, nil, nil, 0, err
   }

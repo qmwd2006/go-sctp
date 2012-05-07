@@ -65,10 +65,15 @@ func (a *SCTPAddr) toAddr() sockaddr {
 // for SCTP network connections.
 type SCTPConn struct {
 	fd *netFD
+  stream uint16
+}
+
+func (c *SCTPConn) GetstreamId() uint16 {
+  return c.stream
 }
 
 func newSCTPConn(fd *netFD) *SCTPConn {
-	c := &SCTPConn{fd}
+	c := &SCTPConn{fd, 0}
 	c.SetNoDelaySCTP(true)
 	return c
 }
@@ -385,7 +390,10 @@ func (c *SCTPConn) ReadFromSCTP(b []byte) (n int, addr *SCTPAddr, err error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
 	}
-	n, sa, err := c.fd.ReadFromSCTP(b)
+  var rinfo *syscall.SCTPRcvInfo
+	n, sa, rinfo, err := c.fd.ReadFromSCTP(b)
+  c.stream = rinfo.Sid
+
 	if err != nil {
 		return 0, nil, err
 	}

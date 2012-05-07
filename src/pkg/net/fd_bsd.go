@@ -5,21 +5,18 @@ import (
   "syscall"
 )
 
-func (fd *netFD) ReadFromSCTP(b []byte)  (n int, sa syscall.Sockaddr, err error) {
+func (fd *netFD) ReadFromSCTP(b []byte)  (n int, sa syscall.Sockaddr, rinfo *syscall.SCTPRcvInfo, err error) {
   fd.rio.Lock()
   defer fd.rio.Unlock()
   if err := fd.incref(false); err != nil {
-    return 0, nil, err
+    return 0, nil, rinfo, err
   }
   defer fd.decref()
-
-  //var info syscall.SCTPSndRcvInfo
-  //var flags int
 
   //sa, msg, info, flags, err = syscall.SCTPReceiveMessage(fd.sysfd)
 
   for {
-    n, sa, _, _, err = syscall.SCTPReceiveMessage(fd.sysfd, b)
+    n, sa, rinfo, _, err = syscall.SCTPReceiveMessage(fd.sysfd, b)
     if err == syscall.EAGAIN {
       err = errTimeout
       if fd.rdeadline >= 0 {
