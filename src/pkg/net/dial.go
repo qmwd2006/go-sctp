@@ -109,6 +109,8 @@ func dialAddr(net, addr string, addri Addr) (c Conn, err error) {
 		c, err = DialUDP(net, nil, ra)
 	case *IPAddr:
 		c, err = DialIP(net, nil, ra)
+  case *SCTPAddr:
+    c, err = DialSCTP(net, nil, ra)
 	case *UnixAddr:
 		c, err = DialUnix(net, nil, ra)
 	default:

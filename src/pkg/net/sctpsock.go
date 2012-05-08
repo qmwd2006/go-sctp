@@ -234,12 +234,8 @@ func DialSCTP(net string, laddr, raddr *SCTPAddr) (*SCTPConn, error) {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
 
-	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToSCTP)
-
-	for i := 0; i < 2 && err == nil && laddr == nil && selfConnectSCTP(fd); i++ {
-		fd.Close()
-		fd, err = internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToSCTP)
-	}
+  // TODO difference between one-to-one and one-to-many
+	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_SEQPACKET, 0, "implicit", sockaddrToSCTP)
 
 	if err != nil {
 		return nil, err
@@ -420,6 +416,7 @@ func (c *SCTPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 
 // TODO
 func (c *SCTPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+  println("todo")
   return 0, nil
 }
 

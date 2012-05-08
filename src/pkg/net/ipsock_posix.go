@@ -135,7 +135,11 @@ func internetSocket(net string, laddr, raddr sockaddr, sotype, proto int, mode s
 			goto Error
 		}
 	}
-	fd, err = socket(net, family, sotype, proto, ipv6only, la, ra, toAddr)
+  if mode == "implicit" {
+	  fd, err = socketOnly(net, family, sotype, proto, ipv6only, la, ra, toAddr)
+  } else {
+	  fd, err = socket(net, family, sotype, proto, ipv6only, la, ra, toAddr)
+  }
 	if err != nil {
 		goto Error
 	}
