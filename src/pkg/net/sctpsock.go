@@ -414,10 +414,23 @@ func (c *SCTPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 
 }
 
-// TODO
+func (c *SCTPConn) WriteToSCTP(b []byte, addr *SCTPAddr) (n int, err error) {
+	if !c.ok() {
+		return 0, syscall.EINVAL
+	}
+  // TODO create SndInfo struct
+  return c.fd.WriteToSCTP(b, nil, nil)
+}
+
 func (c *SCTPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
-  println("todo")
-  return 0, nil
+	if !c.ok() {
+		return 0, syscall.EINVAL
+	}
+	a, ok := addr.(*SCTPAddr)
+	if !ok {
+		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
+	}
+	return c.WriteToSCTP(b, a)
 }
 
 func (c *SCTPConn) SetInitMsg() (err error){

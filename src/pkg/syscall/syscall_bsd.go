@@ -637,6 +637,14 @@ func Munmap(b []byte) (err error) {
 	return mapper.Munmap(b)
 }
 
+func SCTPSendmsg(fd int, p []byte, sinfo *SCTPSndInfo, to Sockaddr, flags int) (err error) {
+
+
+
+  //  n, err = sendmsg(fd, &msg, flags)
+  return
+}
+
 func SCTPReceiveMessage(fd int, p []byte) (n int, from Sockaddr, rinfo *SCTPRcvInfo, flags int, err error) {
 
   // Message header
