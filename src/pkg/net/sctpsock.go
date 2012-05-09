@@ -418,6 +418,8 @@ func (c *SCTPConn) WriteToSCTP(b []byte, addr *SCTPAddr) (n int, err error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
+  // TODO SCTPAddr -> syscall.Sockaddr
+
   // TODO create SndInfo struct
   return c.fd.WriteToSCTP(b, nil, nil)
 }
