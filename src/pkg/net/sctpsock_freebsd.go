@@ -14,7 +14,7 @@ func ListenSCTP(net string, laddr *SCTPAddr) (conn *SCTPConn, err error) {
   if laddr == nil {
     return nil, &OpError{"listen", net, nil, errMissingAddress}
   }
-	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_SEQPACKET, syscall.IPPROTO_SCTP, "listen", sockaddrToSCTP)
+	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_SEQPACKET, syscall.IPPROTO_SCTP, "implicit", sockaddrToSCTP)
 	if err != nil {
 		return nil, err
 	}

@@ -92,6 +92,20 @@ func socketOnly(net string, f, t, p int, ipv6only bool, la, ra syscall.Sockaddr,
 		return nil, err
 	}
 
+  var bla syscall.Sockaddr
+	if la != nil {
+		bla, err = listenerSockaddr(s, f, la, toAddr)
+		if err != nil {
+			closesocket(s)
+			return nil, err
+		}
+		err = syscall.Bind(s, bla)
+		if err != nil {
+			closesocket(s)
+			return nil, err
+		}
+	}
+
   if fd, err = newFD(s, f, t, net); err != nil {
 		closesocket(s)
 		return nil, err
