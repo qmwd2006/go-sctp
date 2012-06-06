@@ -61,7 +61,7 @@ func (a *SCTPAddr) toAddr() sockaddr {
 	return a
 }
 
-// SCTPConn is an implementation of the Conn interface
+// SCTPConn is an implementation of the PacketConn interface
 // for SCTP network connections.
 type SCTPConn struct {
 	fd *netFD
@@ -80,15 +80,6 @@ func newSCTPConn(fd *netFD) *SCTPConn {
 
 func (c *SCTPConn) ok() bool { return c != nil && c.fd != nil }
 
-// Implementation of the Conn interface - see Conn for documentation.
-
-// Read implements the Conn Read method.
-func (c *SCTPConn) Read(b []byte) (n int, err error) {
-	if !c.ok() {
-		return 0, syscall.EINVAL
-	}
-	return c.fd.Read(b)
-}
 
 // ReadFrom implements the io.ReaderFrom ReadFrom method.
 //func (c *SCTPConn) ReadFrom(r io.Reader) (int64, error) {
@@ -98,15 +89,6 @@ func (c *SCTPConn) Read(b []byte) (n int, err error) {
 //	return genericReadFrom(c, r)
 //}
 
-// Write implements the Conn Write method.
-func (c *SCTPConn) Write(b []byte) (n int, err error) {
-	if !c.ok() {
-		return 0, syscall.EINVAL
-	}
-	return c.fd.Write(b)
-}
-
-//func (c *SCTPConn)
 
 // Close closes the SCTP connection.
 func (c *SCTPConn) Close() error {
@@ -142,14 +124,6 @@ func (c *SCTPConn) LocalAddr() Addr {
 		return nil
 	}
 	return c.fd.laddr
-}
-
-// RemoteAddr returns the remote network address, a *TCPAddr.
-func (c *SCTPConn) RemoteAddr() Addr {
-	if !c.ok() {
-		return nil
-	}
-	return c.fd.raddr
 }
 
 // SetDeadline implements the Conn SetDeadline method.
@@ -291,16 +265,6 @@ func (l *SCTPListener) AcceptSCTP() (c *SCTPConn, err error) {
 		return nil, err
 	}
 	return newSCTPConn(fd), nil
-}
-
-// Accept implements the Accept method in the Listener interface;
-// it waits for the next call and returns a generic Conn.
-func (l *SCTPListener) Accept() (c Conn, err error) {
-	c1, err := l.AcceptSCTP()
-	if err != nil {
-		return nil, err
-	}
-	return c1, nil
 }
 
 // Close stops listening on the SCTP address.

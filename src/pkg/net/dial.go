@@ -109,8 +109,6 @@ func dialAddr(net, addr string, addri Addr) (c Conn, err error) {
 		c, err = DialUDP(net, nil, ra)
 	case *IPAddr:
 		c, err = DialIP(net, nil, ra)
-  case *SCTPAddr:
-    c, err = DialSCTP(net, nil, ra)
 	case *UnixAddr:
 		c, err = DialUnix(net, nil, ra)
 	default:
@@ -193,12 +191,6 @@ func Listen(net, laddr string) (Listener, error) {
 			la = a.(*TCPAddr)
 		}
 		return ListenTCP(net, la)
-  case "sctp", "sctp4", "sctp6":
-    var la *SCTPAddr
-    if a != nil {
-      la = a.(*SCTPAddr)
-    }
-    return ListenOneToOneSCTP(net, la) 
 	case "unix", "unixpacket":
 		var la *UnixAddr
 		if a != nil {
