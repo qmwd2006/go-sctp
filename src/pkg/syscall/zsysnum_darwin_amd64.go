@@ -40,7 +40,6 @@ const (
 	SYS_DUP                            = 41
 	SYS_PIPE                           = 42
 	SYS_GETEGID                        = 43
-	SYS_PROFIL                         = 44
 	SYS_SIGACTION                      = 46
 	SYS_GETGID                         = 47
 	SYS_SIGPROCMASK                    = 48
@@ -118,8 +117,8 @@ const (
 	SYS_QUOTACTL                       = 165
 	SYS_MOUNT                          = 167
 	SYS_CSOPS                          = 169
+	SYS_CSOPS_AUDITTOKEN               = 170
 	SYS_WAITID                         = 173
-	SYS_ADD_PROFIL                     = 176
 	SYS_KDEBUG_TRACE                   = 180
 	SYS_SETGID                         = 181
 	SYS_SETEGID                        = 182
@@ -150,10 +149,7 @@ const (
 	SYS_ATPSNDRSP                      = 210
 	SYS_ATPGETREQ                      = 211
 	SYS_ATPGETRSP                      = 212
-	SYS_MKCOMPLEX                      = 216
-	SYS_STATV                          = 217
-	SYS_LSTATV                         = 218
-	SYS_FSTATV                         = 219
+	SYS_OPEN_DPROTECTED_NP             = 216
 	SYS_GETATTRLIST                    = 220
 	SYS_SETATTRLIST                    = 221
 	SYS_GETDIRENTRIESATTR              = 222
@@ -280,8 +276,6 @@ const (
 	SYS_AUDITON                        = 351
 	SYS_GETAUID                        = 353
 	SYS_SETAUID                        = 354
-	SYS_GETAUDIT                       = 355
-	SYS_SETAUDIT                       = 356
 	SYS_GETAUDIT_ADDR                  = 357
 	SYS_SETAUDIT_ADDR                  = 358
 	SYS_AUDITCTL                       = 359
@@ -298,6 +292,7 @@ const (
 	SYS___OLD_SEMWAIT_SIGNAL           = 370
 	SYS___OLD_SEMWAIT_SIGNAL_NOCANCEL  = 371
 	SYS_THREAD_SELFID                  = 372
+	SYS_LEDGER                         = 373
 	SYS___MAC_EXECVE                   = 380
 	SYS___MAC_SYSCALL                  = 381
 	SYS___MAC_GET_FILE                 = 382
@@ -356,5 +351,6 @@ const (
 	SYS_PID_HIBERNATE                  = 435
 	SYS_PID_SHUTDOWN_SOCKETS           = 436
 	SYS_SHARED_REGION_MAP_AND_SLIDE_NP = 438
-	SYS_MAXSYSCALL                     = 439
+	SYS_KAS_INFO                       = 439
+	SYS_MAXSYSCALL                     = 440
 )

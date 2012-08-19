@@ -208,7 +208,6 @@ func DialSCTP(net string, laddr, raddr *SCTPAddr) (*SCTPConn, error) {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
 
-  // TODO difference between one-to-one and one-to-many
 	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_SEQPACKET, 0, "implicit", sockaddrToSCTP)
 
 	if err != nil {
@@ -357,10 +356,21 @@ func (c *SCTPConn) WriteToSCTP(b []byte, addr *SCTPAddr) (n int, err error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
-  // TODO SCTPAddr -> syscall.Sockaddr
+  // SCTPAddr -> syscall.Sockaddr
+  sa, err := addr.sockaddr(c.fd.family)
+  if err != nil {
+    return 0, &OpError{"write", c.fd.net, addr, err}
+  }
 
   // TODO create SndInfo struct
-  return c.fd.WriteToSCTP(b, nil, nil)
+  var sinfo syscall.SCTPSndInfo
+  // sinfo.snd_sid
+  // sinfo.snd_flags
+  // sinfo.snd_ppid
+  // sinfo.snd_context
+  // sinfo.snd_assoc_id
+
+  return c.fd.WriteToSCTP(b, &sinfo, sa)
 }
 
 func (c *SCTPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
@@ -372,6 +382,35 @@ func (c *SCTPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
 	}
 	return c.WriteToSCTP(b, a)
+}
+
+func (c *SCTPConn) Read(b []byte) (n int, err error) {
+	if !c.ok() {
+		return 0, syscall.EINVAL
+	}
+	return c.fd.Read(b)
+}
+
+func (c *SCTPConn) Write(b []byte) (n int, err error) {
+	if !c.ok() {
+		return 0, syscall.EINVAL
+	}
+	return c.fd.Write(b)
+}
+
+func (c *SCTPConn) RemoteAddr() Addr {
+	if !c.ok() {
+		return nil
+	}
+	return c.fd.raddr
+}
+
+func (l *SCTPListener) Accept() (c Conn, err error) {
+	c1, err := l.AcceptSCTP()
+	if err != nil {
+		return nil, err
+	}
+	return c1, nil
 }
 
 func (c *SCTPConn) SetInitMsg() (err error){

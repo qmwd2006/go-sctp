@@ -638,11 +638,36 @@ func Munmap(b []byte) (err error) {
 }
 
 func SCTPSendmsg(fd int, p []byte, sinfo *SCTPSndInfo, to Sockaddr, flags int) (err error) {
-
-
-
-  //  n, err = sendmsg(fd, &msg, flags)
-  return
+	var ptr uintptr
+	var salen _Socklen
+	if to != nil {
+		var err error
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return err
+		}
+	}
+	var msg Msghdr
+	msg.Name = (*byte)(unsafe.Pointer(ptr))
+	msg.Namelen = uint32(salen)
+	var iov Iovec
+	if len(p) > 0 {
+		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+		iov.SetLen(len(p))
+  }
+  var dummy byte
+  if len(p) == 0 {
+    iov.Base = &dummy
+    iov.SetLen(1)
+  }
+  msg.Control = (*byte)(unsafe.Pointer(sinfo))
+  msg.SetControllen(SizeofSCTPSndInfo)
+  msg.Iov = &iov
+	msg.Iovlen = 1
+	if err = sendmsg(fd, &msg, flags); err != nil {
+		return
+	}
+	return
 }
 
 func SCTPReceiveMessage(fd int, p []byte) (n int, from Sockaddr, rinfo *SCTPRcvInfo, flags int, err error) {

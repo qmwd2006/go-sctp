@@ -28,7 +28,7 @@ const (
 	AF_LAT                            = 0xe
 	AF_LINK                           = 0x12
 	AF_LOCAL                          = 0x1
-	AF_MAX                            = 0x26
+	AF_MAX                            = 0x27
 	AF_NATM                           = 0x1f
 	AF_NDRV                           = 0x1b
 	AF_NETBIOS                        = 0x21
@@ -43,6 +43,7 @@ const (
 	AF_SYSTEM                         = 0x20
 	AF_UNIX                           = 0x1
 	AF_UNSPEC                         = 0x0
+	AF_UTUN                           = 0x26
 	BIOCFLUSH                         = 0x20004268
 	BIOCGBLEN                         = 0x40044266
 	BIOCGDLT                          = 0x4004426a
@@ -159,8 +160,8 @@ const (
 	EVFILT_PROC                       = -0x5
 	EVFILT_READ                       = -0x1
 	EVFILT_SIGNAL                     = -0x6
-	EVFILT_SYSCOUNT                   = 0xc
-	EVFILT_THREADMARKER               = 0xc
+	EVFILT_SYSCOUNT                   = 0xd
+	EVFILT_THREADMARKER               = 0xd
 	EVFILT_TIMER                      = -0x7
 	EVFILT_USER                       = -0xa
 	EVFILT_VM                         = -0xc
@@ -205,6 +206,7 @@ const (
 	F_GETPATH                         = 0x32
 	F_GETPATH_MTMINFO                 = 0x47
 	F_GETPROTECTIONCLASS              = 0x3f
+	F_GETPROTECTIONLEVEL              = 0x4d
 	F_GLOBAL_NOCACHE                  = 0x37
 	F_LOG2PHYS                        = 0x31
 	F_LOG2PHYS_EXT                    = 0x41
@@ -228,7 +230,9 @@ const (
 	F_SETOWN                          = 0x6
 	F_SETPROTECTIONCLASS              = 0x40
 	F_SETSIZE                         = 0x2b
+	F_SINGLE_WRITER                   = 0x4c
 	F_THAW_FS                         = 0x36
+	F_TRANSCODEKEY                    = 0x4b
 	F_UNLCK                           = 0x2
 	F_VOLPOSMODE                      = 0x4
 	F_WRITEBOOTSTRAP                  = 0x2f
@@ -663,6 +667,7 @@ const (
 	O_CLOEXEC                         = 0x1000000
 	O_CREAT                           = 0x200
 	O_DIRECTORY                       = 0x100000
+	O_DP_GETRAWENCRYPTED              = 0x1
 	O_DSYNC                           = 0x400000
 	O_EVTONLY                         = 0x8000
 	O_EXCL                            = 0x800
@@ -747,7 +752,9 @@ const (
 	RTF_PROTO1                        = 0x8000
 	RTF_PROTO2                        = 0x4000
 	RTF_PROTO3                        = 0x40000
+	RTF_PROXY                         = 0x8000000
 	RTF_REJECT                        = 0x8
+	RTF_ROUTER                        = 0x10000000
 	RTF_STATIC                        = 0x800
 	RTF_UP                            = 0x1
 	RTF_WASCLONED                     = 0x20000
@@ -801,6 +808,7 @@ const (
 	SCTP_ADDR_OVER                    = 0x800
 	SCTP_ADDR_REMOVED                 = 0x3
 	SCTP_ADDR_UNREACHABLE             = 0x2
+	SCTP_ADD_STREAMS                  = 0x903
 	SCTP_ADD_VRF_ID                   = 0x3002
 	SCTP_ALIGN_RESV_PAD               = 0x5c
 	SCTP_ALIGN_RESV_PAD_SHORT         = 0x4c
@@ -809,6 +817,15 @@ const (
 	SCTP_ASCONF_ACK                   = 0x80
 	SCTP_ASSOCINFO                    = 0x2
 	SCTP_ASSOC_CHANGE                 = 0x1
+	SCTP_ASSOC_RESET_DENIED           = 0x4
+	SCTP_ASSOC_RESET_EVENT            = 0xc
+	SCTP_ASSOC_RESET_FAILED           = 0x8
+	SCTP_ASSOC_SUPPORTS_ASCONF        = 0x3
+	SCTP_ASSOC_SUPPORTS_AUTH          = 0x2
+	SCTP_ASSOC_SUPPORTS_MAX           = 0x5
+	SCTP_ASSOC_SUPPORTS_MULTIBUF      = 0x4
+	SCTP_ASSOC_SUPPORTS_PR            = 0x1
+	SCTP_ASSOC_SUPPORTS_RE_CONFIG     = 0x5
 	SCTP_AUTHENTICATION               = 0xf
 	SCTP_AUTHENTICATION_EVENT         = 0x8
 	SCTP_AUTHINFO                     = 0x8
@@ -825,6 +842,7 @@ const (
 	SCTP_AUTH_HMAC_ID_SHA512          = 0x6
 	SCTP_AUTH_KEY                     = 0x13
 	SCTP_AUTH_NEWKEY                  = 0x1
+	SCTP_AUTH_NEW_KEY                 = 0x1
 	SCTP_AUTH_NO_AUTH                 = 0x2
 	SCTP_AUTOCLOSE                    = 0x5
 	SCTP_AUTO_ASCONF                  = 0x18
@@ -910,6 +928,11 @@ const (
 	SCTP_DSTADDRV6                    = 0xa
 	SCTP_ECN_CWR                      = 0xd
 	SCTP_ECN_ECHO                     = 0xc
+	SCTP_ENABLE_CHANGE_ASSOC_REQ      = 0x4
+	SCTP_ENABLE_RESET_ASSOC_REQ       = 0x2
+	SCTP_ENABLE_RESET_STREAM_REQ      = 0x1
+	SCTP_ENABLE_STREAM_RESET          = 0x900
+	SCTP_ENABLE_VALUE_MASK            = 0x7
 	SCTP_EOF                          = 0x100
 	SCTP_EOR                          = 0x2000
 	SCTP_ESTABLISHED                  = 0x8
@@ -999,6 +1022,7 @@ const (
 	SCTP_PCB_COPY_FLAGS               = 0x6000004
 	SCTP_PCB_FLAGS_ACCEPTING          = 0x8
 	SCTP_PCB_FLAGS_ADAPTATIONEVNT     = 0x10000
+	SCTP_PCB_FLAGS_ASSOC_RESETEVNT    = 0x20000000
 	SCTP_PCB_FLAGS_AUTHEVNT           = 0x40000
 	SCTP_PCB_FLAGS_AUTOCLOSE          = 0x200
 	SCTP_PCB_FLAGS_AUTO_ASCONF        = 0x40
@@ -1025,6 +1049,7 @@ const (
 	SCTP_PCB_FLAGS_PORTREUSE          = 0x2000000
 	SCTP_PCB_FLAGS_RECVASSOCEVNT      = 0x800
 	SCTP_PCB_FLAGS_RECVDATAIOEVNT     = 0x400
+	SCTP_PCB_FLAGS_RECVNSENDFAILEVNT  = 0x80000000
 	SCTP_PCB_FLAGS_RECVNXTINFO        = 0x10000000
 	SCTP_PCB_FLAGS_RECVPADDREVNT      = 0x1000
 	SCTP_PCB_FLAGS_RECVPEERERR        = 0x2000
@@ -1034,6 +1059,7 @@ const (
 	SCTP_PCB_FLAGS_SOCKET_ALLGONE     = 0x20000000
 	SCTP_PCB_FLAGS_SOCKET_CANT_READ   = 0x40000000
 	SCTP_PCB_FLAGS_SOCKET_GONE        = 0x10000000
+	SCTP_PCB_FLAGS_STREAM_CHANGEEVNT  = 0x40000000
 	SCTP_PCB_FLAGS_STREAM_RESETEVNT   = 0x80000
 	SCTP_PCB_FLAGS_TCPTYPE            = 0x2
 	SCTP_PCB_FLAGS_UDPTYPE            = 0x1
@@ -1067,12 +1093,8 @@ const (
 	SCTP_RECV_RWND_LOGGING_ENABLE     = 0x1000
 	SCTP_REMOTE_ERROR                 = 0x3
 	SCTP_REMOTE_UDP_ENCAPS_PORT       = 0x24
-	SCTP_RESET_ADD_STREAMS            = 0x5
-	SCTP_RESET_BOTH                   = 0x3
-	SCTP_RESET_LOCAL_RECV             = 0x1
-	SCTP_RESET_LOCAL_SEND             = 0x2
-	SCTP_RESET_STREAMS                = 0x1004
-	SCTP_RESET_TSN                    = 0x4
+	SCTP_RESET_ASSOC                  = 0x902
+	SCTP_RESET_STREAMS                = 0x901
 	SCTP_RESTART                      = 0x3
 	SCTP_REUSE_PORT                   = 0x1c
 	SCTP_RTOINFO                      = 0x1
@@ -1095,6 +1117,7 @@ const (
 	SCTP_SENDV_SPA                    = 0x4
 	SCTP_SEND_AUTHINFO_VALID          = 0x4
 	SCTP_SEND_FAILED                  = 0x4
+	SCTP_SEND_FAILED_EVENT            = 0xe
 	SCTP_SEND_PRINFO_VALID            = 0x2
 	SCTP_SEND_SNDINFO_VALID           = 0x1
 	SCTP_SET_DEBUG_LEVEL              = 0x1005
@@ -1121,14 +1144,17 @@ const (
 	SCTP_SS_ROUND_ROBIN_PACKET        = 0x2
 	SCTP_SS_VALUE                     = 0x1204
 	SCTP_STATUS                       = 0x100
+	SCTP_STREAM_CHANGE_DENIED         = 0x4
+	SCTP_STREAM_CHANGE_EVENT          = 0xd
+	SCTP_STREAM_CHANGE_FAILED         = 0x8
 	SCTP_STREAM_RESET                 = 0x82
+	SCTP_STREAM_RESET_DENIED          = 0x4
 	SCTP_STREAM_RESET_EVENT           = 0x9
-	SCTP_STRRESET_ADD_STREAM          = 0x20
-	SCTP_STRRESET_ALL_STREAMS         = 0x4
-	SCTP_STRRESET_FAILED              = 0x10
-	SCTP_STRRESET_INBOUND_STR         = 0x1
-	SCTP_STRRESET_OUTBOUND_STR        = 0x2
-	SCTP_STRRESET_STREAM_LIST         = 0x8
+	SCTP_STREAM_RESET_FAILED          = 0x8
+	SCTP_STREAM_RESET_INCOMING        = 0x1
+	SCTP_STREAM_RESET_INCOMING_SSN    = 0x1
+	SCTP_STREAM_RESET_OUTGOING        = 0x2
+	SCTP_STREAM_RESET_OUTGOING_SSN    = 0x2
 	SCTP_STR_LOGGING_ENABLE           = 0x20000
 	SCTP_THRESHOLD_LOGGING            = 0x2000000
 	SCTP_TIMEOUTS                     = 0x106
@@ -1425,7 +1451,7 @@ const (
 	EIO             = Errno(0x5)
 	EISCONN         = Errno(0x38)
 	EISDIR          = Errno(0x15)
-	ELAST           = Errno(0x69)
+	ELAST           = Errno(0x6a)
 	ELOOP           = Errno(0x3e)
 	EMFILE          = Errno(0x18)
 	EMLINK          = Errno(0x1f)
@@ -1476,6 +1502,7 @@ const (
 	EPROTONOSUPPORT = Errno(0x2b)
 	EPROTOTYPE      = Errno(0x29)
 	EPWROFF         = Errno(0x52)
+	EQFULL          = Errno(0x6a)
 	ERANGE          = Errno(0x22)
 	EREMOTE         = Errno(0x47)
 	EROFS           = Errno(0x1e)
@@ -1638,6 +1665,7 @@ var errors = [...]string{
 	103: "policy not found",
 	104: "state not recoverable",
 	105: "previous owner died",
+	106: "interface output queue is full",
 }
 
 // Signal table
