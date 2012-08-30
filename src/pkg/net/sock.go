@@ -85,7 +85,7 @@ func socketOnly(net string, f, t, p int, ipv6only bool, la, ra syscall.Sockaddr,
 		return nil, err
 	}
 
-  var bla syscall.Sockaddr
+	var bla syscall.Sockaddr
 	if la != nil {
 		bla, err = listenerSockaddr(s, f, la, toAddr)
 		if err != nil {
@@ -99,7 +99,7 @@ func socketOnly(net string, f, t, p int, ipv6only bool, la, ra syscall.Sockaddr,
 		}
 	}
 
-  if fd, err = newFD(s, f, t, net); err != nil {
+	if fd, err = newFD(s, f, t, net); err != nil {
 		closesocket(s)
 		return nil, err
 	}
@@ -140,8 +140,8 @@ func nullProtocolAddr(f, t int) Addr {
 		switch t {
 		case syscall.SOCK_STREAM:
 			return (*TCPAddr)(nil)
-    case syscall.SOCK_SEQPACKET:
-      return (*SCTPAddr)(nil)
+		case syscall.SOCK_SEQPACKET:
+			return (*SCTPAddr)(nil)
 		case syscall.SOCK_DGRAM:
 			return (*UDPAddr)(nil)
 		case syscall.SOCK_RAW:

@@ -4,23 +4,19 @@ package net
 
 import (
 	"os"
-//  "io"
+	//  "io"
 	"syscall"
 	"time"
 )
 
-
 // SCTPAddr represents the address of a SCTP end point
 type SCTPAddr struct {
-  IP  IP
-  Port  int
+	IP   IP
+	Port int
 }
 
 type sctplisten interface {
-
-
 }
-
 
 // Network returns the address's network name, "sctp".
 func (a *SCTPAddr) Network() string { return "sctp" }
@@ -49,7 +45,6 @@ func (a *SCTPAddr) isWildcard() bool {
 	return a.IP.IsUnspecified()
 }
 
-
 func (a *SCTPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
 	return ipToSockaddr(family, a.IP, a.Port)
 }
@@ -64,12 +59,12 @@ func (a *SCTPAddr) toAddr() sockaddr {
 // SCTPConn is an implementation of the PacketConn interface
 // for SCTP network connections.
 type SCTPConn struct {
-	fd *netFD
-  stream uint16
+	fd     *netFD
+	stream uint16
 }
 
 func (c *SCTPConn) GetstreamId() uint16 {
-  return c.stream
+	return c.stream
 }
 
 func newSCTPConn(fd *netFD) *SCTPConn {
@@ -80,7 +75,6 @@ func newSCTPConn(fd *netFD) *SCTPConn {
 
 func (c *SCTPConn) ok() bool { return c != nil && c.fd != nil }
 
-
 // ReadFrom implements the io.ReaderFrom ReadFrom method.
 //func (c *SCTPConn) ReadFrom(r io.Reader) (int64, error) {
 //	if n, err, handled := sendFile(c.fd, r); handled {
@@ -88,7 +82,6 @@ func (c *SCTPConn) ok() bool { return c != nil && c.fd != nil }
 //	}
 //	return genericReadFrom(c, r)
 //}
-
 
 // Close closes the SCTP connection.
 func (c *SCTPConn) Close() error {
@@ -239,18 +232,18 @@ type SCTPListener struct {
 // If laddr has a port of 0, it means to listen on some available port.
 // The caller can use l.Addr() to retrieve the chosen address.
 func ListenOneToOneSCTP(net string, laddr *SCTPAddr) (*SCTPListener, error) {
-  fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, syscall.IPPROTO_SCTP, "listen", sockaddrToSCTP)
-  if err != nil {
-    return nil, err
-  }
-  err = syscall.Listen(fd.sysfd, listenerBacklog)
-  if err != nil {
-    closesocket(fd.sysfd)
-    return nil, &OpError{"listen", net, laddr, err}
-  }
-  l := new(SCTPListener)
-  l.fd = fd
-  return l, nil
+	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, syscall.IPPROTO_SCTP, "listen", sockaddrToSCTP)
+	if err != nil {
+		return nil, err
+	}
+	err = syscall.Listen(fd.sysfd, listenerBacklog)
+	if err != nil {
+		closesocket(fd.sysfd)
+		return nil, &OpError{"listen", net, laddr, err}
+	}
+	l := new(SCTPListener)
+	l.fd = fd
+	return l, nil
 }
 
 // AcceptSCTP accepts the next incoming call and returns the new connection
@@ -324,9 +317,9 @@ func (c *SCTPConn) ReadFromSCTP(b []byte) (n int, addr *SCTPAddr, err error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
 	}
-  var rinfo *syscall.SCTPRcvInfo
+	var rinfo *syscall.SCTPRcvInfo
 	n, sa, rinfo, err := c.fd.ReadFromSCTP(b)
-  c.stream = rinfo.Sid
+	c.stream = rinfo.Sid
 
 	if err != nil {
 		return 0, nil, err
@@ -356,21 +349,21 @@ func (c *SCTPConn) WriteToSCTP(b []byte, addr *SCTPAddr) (n int, err error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
-  // SCTPAddr -> syscall.Sockaddr
-  sa, err := addr.sockaddr(c.fd.family)
-  if err != nil {
-    return 0, &OpError{"write", c.fd.net, addr, err}
-  }
+	// SCTPAddr -> syscall.Sockaddr
+	sa, err := addr.sockaddr(c.fd.family)
+	if err != nil {
+		return 0, &OpError{"write", c.fd.net, addr, err}
+	}
 
-  // TODO create SndInfo struct
-  var sinfo syscall.SCTPSndInfo
-  // sinfo.snd_sid
-  // sinfo.snd_flags
-  // sinfo.snd_ppid
-  // sinfo.snd_context
-  // sinfo.snd_assoc_id
+	// TODO create SndInfo struct
+	var sinfo syscall.SCTPSndInfo
+	// sinfo.snd_sid
+	// sinfo.snd_flags
+	// sinfo.snd_ppid
+	// sinfo.snd_context
+	// sinfo.snd_assoc_id
 
-  return c.fd.WriteToSCTP(b, &sinfo, sa)
+	return c.fd.WriteToSCTP(b, &sinfo, sa)
 }
 
 func (c *SCTPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
@@ -413,39 +406,37 @@ func (l *SCTPListener) Accept() (c Conn, err error) {
 	return c1, nil
 }
 
-func (c *SCTPConn) SetInitMsg() (err error){
+func (c *SCTPConn) SetInitMsg() (err error) {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-  var sim syscall.SCTPInitMsg
-  sim.Num_ostreams = 100;
-  sim.Max_instreams = 100;
-  sim.Max_attempts = 0;
-  sim.Max_init_timeo = 0;
+	var sim syscall.SCTPInitMsg
+	sim.Num_ostreams = 100
+	sim.Max_instreams = 100
+	sim.Max_attempts = 0
+	sim.Max_init_timeo = 0
 
 	return setSCTPInitMsg(c.fd, &sim)
 }
 
 func (c *SCTPConn) SetNoDelaySCTP(noDelay bool) error {
-  if !c.ok() {
-    return syscall.EINVAL
-  }
-  return setNoDelaySCTP(c.fd, noDelay)
+	if !c.ok() {
+		return syscall.EINVAL
+	}
+	return setNoDelaySCTP(c.fd, noDelay)
 }
 
 func (c *SCTPConn) SetRecvInfo(recvInfo bool) error {
-  if !c.ok() {
-    return syscall.EINVAL
-  }
-  return setRecvInfo(c.fd, recvInfo)
+	if !c.ok() {
+		return syscall.EINVAL
+	}
+	return setRecvInfo(c.fd, recvInfo)
 }
 
 func setRecvInfo(fd *netFD, recvInfo bool) error {
-  if err := fd.incref(false); err != nil {
-    return err
-  }
-  defer fd.decref()
-  return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_RECVRCVINFO, boolint(recvInfo)))
+	if err := fd.incref(false); err != nil {
+		return err
+	}
+	defer fd.decref()
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_RECVRCVINFO, boolint(recvInfo)))
 }
-
-

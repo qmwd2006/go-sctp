@@ -62,22 +62,21 @@ func setIPv6TrafficClass(fd *netFD, v int) error {
 }
 
 func setSCTPInitMsg(fd *netFD, sim *syscall.SCTPInitMsg) error {
-  if err := fd.incref(false); err != nil {
-    return err
-  }
-  defer fd.decref()
-  err := syscall.SetsockoptSCTPInitMsg(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_INITMSG, sim)
-  if err != nil {
-    return os.NewSyscallError("setsockopt", err)
-  }
-  return nil
+	if err := fd.incref(false); err != nil {
+		return err
+	}
+	defer fd.decref()
+	err := syscall.SetsockoptSCTPInitMsg(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_INITMSG, sim)
+	if err != nil {
+		return os.NewSyscallError("setsockopt", err)
+	}
+	return nil
 }
 
 func setNoDelaySCTP(fd *netFD, noDelay bool) error {
-  if err := fd.incref(false); err != nil {
-    return err 
-  }
-  defer fd.decref()
-  return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_NODELAY, boolint(noDelay)))
+	if err := fd.incref(false); err != nil {
+		return err
+	}
+	defer fd.decref()
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_NODELAY, boolint(noDelay)))
 }
-
