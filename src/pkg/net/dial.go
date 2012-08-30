@@ -13,7 +13,8 @@ func parseDialNetwork(net string) (afnet string, proto int, err error) {
 	if i < 0 { // no colon
 		switch net {
 		case "tcp", "tcp4", "tcp6":
-		case "udp", "udp4", "udp6":
+    case "sctp", "sctp4", "sctp6":
+    case "udp", "udp4", "udp6":
 		case "unix", "unixgram", "unixpacket":
 		default:
 			return "", 0, UnknownNetworkError(net)
@@ -48,7 +49,11 @@ func resolveNetAddr(op, net, addr string) (afnet string, a Addr, err error) {
 	case "tcp", "tcp4", "tcp6":
 		if addr != "" {
 			a, err = ResolveTCPAddr(afnet, addr)
-		}
+    }
+  case "sctp", "sctp4", "sctp6":
+    if addr != "" {
+      a, err = ResolveSCTPAddr(afnet, addr)
+    }
 	case "udp", "udp4", "udp6":
 		if addr != "" {
 			a, err = ResolveUDPAddr(afnet, addr)
@@ -104,6 +109,8 @@ func dialAddr(net, addr string, addri Addr) (c Conn, err error) {
 		c, err = DialUDP(net, nil, ra)
 	case *IPAddr:
 		c, err = DialIP(net, nil, ra)
+  case *SCTPAddr:
+    c, err = DialSCTP(net, nil, ra)
 	case *UnixAddr:
 		c, err = DialUnix(net, nil, ra)
 	default:
@@ -173,7 +180,7 @@ func (a stringAddr) String() string  { return a.addr }
 
 // Listen announces on the local network address laddr.
 // The network string net must be a stream-oriented network:
-// "tcp", "tcp4", "tcp6", "unix" or "unixpacket".
+// "tcp", "tcp4", "tcp6", "sctp", "sctp4", "sctp6" or "unix", or "unixpacket".
 func Listen(net, laddr string) (Listener, error) {
 	afnet, a, err := resolveNetAddr("listen", net, laddr)
 	if err != nil {
@@ -186,6 +193,12 @@ func Listen(net, laddr string) (Listener, error) {
 			la = a.(*TCPAddr)
 		}
 		return ListenTCP(net, la)
+  case "sctp", "sctp4", "sctp6":
+    var la *SCTPAddr
+    if a != nil {
+      la = a.(*SCTPAddr)
+    }
+    return ListenOneToOneSCTP(net, la)
 	case "unix", "unixpacket":
 		var la *UnixAddr
 		if a != nil {
@@ -198,7 +211,7 @@ func Listen(net, laddr string) (Listener, error) {
 
 // ListenPacket announces on the local network address laddr.
 // The network string net must be a packet-oriented network:
-// "udp", "udp4", "udp6", "ip", "ip4", "ip6" or "unixgram".
+// "udp", "udp4", "udp6", "sctp", "sctp4", "sctp6", "ip", "ip4", "ip6" or "unixgram".
 func ListenPacket(net, addr string) (PacketConn, error) {
 	afnet, a, err := resolveNetAddr("listen", net, addr)
 	if err != nil {
@@ -211,6 +224,12 @@ func ListenPacket(net, addr string) (PacketConn, error) {
 			la = a.(*UDPAddr)
 		}
 		return ListenUDP(net, la)
+  case "sctp", "sctp4", "sctp6":
+    var la *SCTPAddr
+    if a != nil {
+      la = a.(*SCTPAddr)
+    }
+    return ListenSCTP(net, la)
 	case "ip", "ip4", "ip6":
 		var la *IPAddr
 		if a != nil {

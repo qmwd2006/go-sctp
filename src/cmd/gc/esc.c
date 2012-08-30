@@ -886,7 +886,6 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
 			if(debug['m'])
 				warnl(src->lineno, "leaking param: %hN", src);
 		}
-
 		// Treat a PPARAMREF closure variable as equivalent to the
 		// original variable.
 		if(src->class == PPARAMREF) {

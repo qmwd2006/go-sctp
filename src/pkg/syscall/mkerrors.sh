@@ -141,6 +141,7 @@ includes='
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
+#include <netinet/sctp.h>
 #include <errno.h>
 #include <sys/signal.h>
 #include <signal.h>
@@ -195,7 +196,7 @@ ccflags="$@"
 		$2 ~ /^O[CNPFP][A-Z]+[^_][A-Z]+$/ ||
 		$2 ~ /^IN_/ ||
 		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|NOTE|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|MCL|DT|MADV|PR)_/ ||
+		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|SCTP|EVFILT|NOTE|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|MCL|DT|MADV|PR)_/ ||
 		$2 == "SOMAXCONN" ||
 		$2 == "NAME_MAX" ||
 		$2 == "IFNAMSIZ" ||
