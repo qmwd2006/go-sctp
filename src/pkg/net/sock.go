@@ -140,6 +140,8 @@ func nullProtocolAddr(f, t int) Addr {
 		switch t {
 		case syscall.SOCK_STREAM:
 			return (*TCPAddr)(nil)
+    case syscall.SOCK_SEQPACKET:
+      return (*SCTPAddr)(nil)
 		case syscall.SOCK_DGRAM:
 			return (*UDPAddr)(nil)
 		case syscall.SOCK_RAW:
