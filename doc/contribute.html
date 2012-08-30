@@ -104,11 +104,6 @@ the code review extension disables the standard <code>hg commit</code>
 command.
 </p>
 
-<p>
-Mercurial power users: if you prefer to use the Mercurial Queues extension, see
-<a href="codereview_with_mq.html">Using Mercurial Queues with Codereview</a>.
-</p>
-
 <h3>Configure the extension</h3>
 
 <p>Edit <code>$GOROOT/.hg/hgrc</code> to add:</p>
@@ -162,6 +157,19 @@ Many people prefer to set the Context option to
 can use that nickname as a shorthand for naming reviewers and the CC list.
 For example, <code>rsc</code> is an alias for <code>rsc@golang.org</code>.
 </p>
+
+<h3>Switch to the default branch</h3>
+
+<p>
+Most Go installations use a release branch, but new changes should
+only be made to the default branch. (They may be applied later to a release
+branch as part of the release process.)
+Before making a change, make sure you use the default branch:
+</p>
+
+<pre>
+$ hg update default
+</pre>
 
 <h3>Make a change</h3>
 

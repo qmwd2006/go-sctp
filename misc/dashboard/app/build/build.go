@@ -49,6 +49,10 @@ func (p *Package) LastCommit(c appengine.Context) (*Commit, error) {
 		Order("-Time").
 		Limit(1).
 		GetAll(c, &commits)
+	if _, ok := err.(*datastore.ErrFieldMismatch); ok {
+		// Some fields have been removed, so it's okay to ignore this error.
+		err = nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +68,10 @@ func GetPackage(c appengine.Context, path string) (*Package, error) {
 	err := datastore.Get(c, p.Key(c), p)
 	if err == datastore.ErrNoSuchEntity {
 		return nil, fmt.Errorf("package %q not found", path)
+	}
+	if _, ok := err.(*datastore.ErrFieldMismatch); ok {
+		// Some fields have been removed, so it's okay to ignore this error.
+		err = nil
 	}
 	return p, err
 }
@@ -158,15 +166,6 @@ func partsToHash(c *Commit, p []string) *Result {
 		OK:          p[1] == "true",
 		LogHash:     p[2],
 	}
-}
-
-// OK returns the Commit's build state for a specific builder and goHash.
-func (c *Commit) OK(builder, goHash string) (ok, present bool) {
-	r := c.Result(builder, goHash)
-	if r == nil {
-		return false, false
-	}
-	return r.OK, true
 }
 
 // A Result describes a build result for a Commit on an OS/architecture.
@@ -297,7 +296,12 @@ func Packages(c appengine.Context, kind string) ([]*Package, error) {
 	q := datastore.NewQuery("Package").Filter("Kind=", kind)
 	for t := q.Run(c); ; {
 		pkg := new(Package)
-		if _, err := t.Next(pkg); err == datastore.Done {
+		_, err := t.Next(pkg)
+		if _, ok := err.(*datastore.ErrFieldMismatch); ok {
+			// Some fields have been removed, so it's okay to ignore this error.
+			err = nil
+		}
+		if err == datastore.Done {
 			break
 		} else if err != nil {
 			return nil, err

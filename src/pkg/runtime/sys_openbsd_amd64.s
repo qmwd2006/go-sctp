@@ -8,20 +8,20 @@
 
 #include "zasm_GOOS_GOARCH.h"
 
-// int64 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
-TEXT runtime·rfork_thread(SB),7,$0
-	MOVL	flags+8(SP), DI
-	MOVQ	stack+16(SP), SI
+// int64 tfork_thread(void *param, void *stack, M *m, G *g, void (*fn)(void));
+TEXT runtime·tfork_thread(SB),7,$32
 
-	// Copy m, g, fn off parent stack for use by child.
-	MOVQ	mm+24(SP), R8
-	MOVQ	gg+32(SP), R9
-	MOVQ	fn+40(SP), R12
+	// Copy stack, m, g and fn off parent stack for use by child.
+	MOVQ	stack+8(FP), SI
+	MOVQ	mm+16(FP), R8
+	MOVQ	gg+24(FP), R9
+	MOVQ	fn+32(FP), R12
 
-	MOVL	$251, AX		// sys_rfork
+	MOVQ	param+0(FP), DI
+	MOVL	$328, AX		// sys___tfork
 	SYSCALL
 
-	// Return if rfork syscall failed
+	// Return if tfork syscall failed.
 	JCC	3(PC)
 	NEGL	AX
 	RET
@@ -31,19 +31,14 @@ TEXT runtime·rfork_thread(SB),7,$0
 	JEQ	2(PC)
 	RET
 
-	// In child, on new stack.
+	// In child, switch to new stack.
 	MOVQ	SI, SP
-
-	// Initialize m->procid to thread ID
-	MOVL	$299, AX		// sys_getthrid
-	SYSCALL
-	MOVQ	AX, m_procid(R8)
 
 	// Set FS to point at m->tls.
 	LEAQ	m_tls(R8), DI
 	CALL	runtime·settls(SB)
 
-	// In child, set up new stack
+	// In child, set up new stack.
 	get_tls(CX)
 	MOVQ	R8, m(CX)
 	MOVQ	R9, g(CX)
@@ -53,7 +48,8 @@ TEXT runtime·rfork_thread(SB),7,$0
 	CALL	R12
 
 	// It shouldn't return.  If it does, exit
-	MOVL	$302, AX		// sys_threxit
+	MOVQ	$0, DI			// arg 1 - notdead
+	MOVL	$302, AX		// sys___threxit
 	SYSCALL
 	JMP	-3(PC)			// keep exiting
 
@@ -67,14 +63,15 @@ TEXT runtime·thrsleep(SB),7,$0
 	MOVL	16(SP), SI		// arg 2 - clock_id
 	MOVQ	24(SP), DX		// arg 3 - tp
 	MOVQ	32(SP), R10		// arg 4 - lock
-	MOVL	$300, AX		// sys_thrsleep
+	MOVQ	40(SP), R8		// arg 5 - abort
+	MOVL	$300, AX		// sys___thrsleep
 	SYSCALL
 	RET
 
 TEXT runtime·thrwakeup(SB),7,$0
 	MOVQ	8(SP), DI		// arg 1 - ident
 	MOVL	16(SP), SI		// arg 2 - n
-	MOVL	$301, AX		// sys_thrwakeup
+	MOVL	$301, AX		// sys___thrwakeup
 	SYSCALL
 	RET
 
@@ -83,13 +80,14 @@ TEXT runtime·exit(SB),7,$-8
 	MOVL	8(SP), DI		// arg 1 - exit status
 	MOVL	$1, AX			// sys_exit
 	SYSCALL
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·exit1(SB),7,$-8
-	MOVL	$302, AX		// sys_threxit
+	MOVQ	$0, DI			// arg 1 - notdead
+	MOVL	$302, AX		// sys___threxit
 	SYSCALL
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·write(SB),7,$-8
@@ -140,7 +138,7 @@ TEXT time·now(SB), 7, $32
 	MOVL	$116, AX		// sys_gettimeofday
 	SYSCALL
 	MOVQ	8(SP), AX		// sec
-	MOVL	16(SP), DX	// usec
+	MOVL	16(SP), DX		// usec
 
 	// sec is in AX, usec in DX
 	MOVQ	AX, sec+0(FP)
@@ -154,7 +152,7 @@ TEXT runtime·nanotime(SB),7,$32
 	MOVL	$116, AX		// sys_gettimeofday
 	SYSCALL
 	MOVQ	8(SP), AX		// sec
-	MOVL	16(SP), DX	// usec
+	MOVL	16(SP), DX		// usec
 
 	// sec is in AX, usec in DX
 	// return nsec in AX
@@ -170,7 +168,17 @@ TEXT runtime·sigaction(SB),7,$-8
 	MOVL	$46, AX
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
+	RET
+
+TEXT runtime·sigprocmask(SB),7,$0
+	MOVL	8(SP), DI		// arg 1 - how
+	MOVL	12(SP), SI		// arg 2 - set
+	MOVL	$48, AX			// sys_sigprocmask
+	SYSCALL
+	JCC	2(PC)
+	MOVL	$0xf1, 0xf1		// crash
+	MOVL	AX, oset+0(FP)		// Return oset
 	RET
 
 TEXT runtime·sigtramp(SB),7,$64
@@ -226,7 +234,7 @@ TEXT runtime·munmap(SB),7,$0
 	MOVL	$73, AX			// sys_munmap
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·sigaltstack(SB),7,$-8
@@ -235,7 +243,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
 	MOVQ	$288, AX		// sys_sigaltstack
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 // set tls base to DI
@@ -248,7 +256,7 @@ TEXT runtime·settls(SB),7,$8
 	MOVQ	$165, AX		// sys_sysarch
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 TEXT runtime·sysctl(SB),7,$0
@@ -260,7 +268,7 @@ TEXT runtime·sysctl(SB),7,$0
 	MOVQ	48(SP), R9		// arg 6 - newlen
 	MOVQ	$202, AX		// sys___sysctl
 	SYSCALL
-	JCC 3(PC)
+	JCC	3(PC)
 	NEGL	AX
 	RET
 	MOVL	$0, AX

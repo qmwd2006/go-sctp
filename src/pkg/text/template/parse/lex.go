@@ -13,8 +13,9 @@ import (
 
 // item represents a token or text string returned from the scanner.
 type item struct {
-	typ itemType
-	val string
+	typ itemType // The type of this item.
+	pos int      // The starting position, in bytes, of this item in the input string.
+	val string   // The value of this item.
 }
 
 func (i item) String() string {
@@ -45,10 +46,13 @@ const (
 	itemField      // alphanumeric identifier, starting with '.', possibly chained ('.x.y')
 	itemIdentifier // alphanumeric identifier
 	itemLeftDelim  // left action delimiter
+	itemLeftParen  // '(' inside action
 	itemNumber     // simple number, including imaginary
 	itemPipe       // pipe symbol
 	itemRawString  // raw quoted string (includes quotes)
 	itemRightDelim // right action delimiter
+	itemRightParen // ')' inside action
+	itemSpace      // run of spaces separating arguments
 	itemString     // quoted string (includes quotes)
 	itemText       // plain text
 	itemVariable   // variable starting with '$', such as '$' or  '$1' or '$hello'.
@@ -59,47 +63,11 @@ const (
 	itemElse     // else keyword
 	itemEnd      // end keyword
 	itemIf       // if keyword
+	itemNil      // the untyped nil constant, easiest to treat as a keyword
 	itemRange    // range keyword
 	itemTemplate // template keyword
 	itemWith     // with keyword
 )
-
-// Make the types prettyprint.
-var itemName = map[itemType]string{
-	itemError:        "error",
-	itemBool:         "bool",
-	itemChar:         "char",
-	itemCharConstant: "charconst",
-	itemComplex:      "complex",
-	itemColonEquals:  ":=",
-	itemEOF:          "EOF",
-	itemField:        "field",
-	itemIdentifier:   "identifier",
-	itemLeftDelim:    "left delim",
-	itemNumber:       "number",
-	itemPipe:         "pipe",
-	itemRawString:    "raw string",
-	itemRightDelim:   "right delim",
-	itemString:       "string",
-	itemVariable:     "variable",
-	// keywords
-	itemDot:      ".",
-	itemDefine:   "define",
-	itemElse:     "else",
-	itemIf:       "if",
-	itemEnd:      "end",
-	itemRange:    "range",
-	itemTemplate: "template",
-	itemWith:     "with",
-}
-
-func (i itemType) String() string {
-	s := itemName[i]
-	if s == "" {
-		return fmt.Sprintf("item%d", int(i))
-	}
-	return s
-}
 
 var key = map[string]itemType{
 	".":        itemDot,
@@ -108,6 +76,7 @@ var key = map[string]itemType{
 	"end":      itemEnd,
 	"if":       itemIf,
 	"range":    itemRange,
+	"nil":      itemNil,
 	"template": itemTemplate,
 	"with":     itemWith,
 }
@@ -127,7 +96,9 @@ type lexer struct {
 	pos        int       // current position in the input.
 	start      int       // start position of this item.
 	width      int       // width of last rune read from input.
+	lastPos    int       // position of most recent item returned by nextItem
 	items      chan item // channel of scanned items.
+	parenDepth int       // nesting depth of ( ) exprs
 }
 
 // next returns the next rune in the input.
@@ -155,7 +126,7 @@ func (l *lexer) backup() {
 
 // emit passes an item back to the client.
 func (l *lexer) emit(t itemType) {
-	l.items <- item{t, l.input[l.start:l.pos]}
+	l.items <- item{t, l.start, l.input[l.start:l.pos]}
 	l.start = l.pos
 }
 
@@ -180,30 +151,25 @@ func (l *lexer) acceptRun(valid string) {
 	l.backup()
 }
 
-// lineNumber reports which line we're on. Doing it this way
+// lineNumber reports which line we're on, based on the position of
+// the previous item returned by nextItem. Doing it this way
 // means we don't have to worry about peek double counting.
 func (l *lexer) lineNumber() int {
-	return 1 + strings.Count(l.input[:l.pos], "\n")
+	return 1 + strings.Count(l.input[:l.lastPos], "\n")
 }
 
 // error returns an error token and terminates the scan by passing
 // back a nil pointer that will be the next state, terminating l.nextItem.
 func (l *lexer) errorf(format string, args ...interface{}) stateFn {
-	l.items <- item{itemError, fmt.Sprintf(format, args...)}
+	l.items <- item{itemError, l.start, fmt.Sprintf(format, args...)}
 	return nil
 }
 
 // nextItem returns the next item from the input.
 func (l *lexer) nextItem() item {
-	for {
-		select {
-		case item := <-l.items:
-			return item
-		default:
-			l.state = l.state(l)
-		}
-	}
-	panic("not reached")
+	item := <-l.items
+	l.lastPos = item.pos
+	return item
 }
 
 // lex creates a new scanner for the input string.
@@ -219,10 +185,17 @@ func lex(name, input, left, right string) *lexer {
 		input:      input,
 		leftDelim:  left,
 		rightDelim: right,
-		state:      lexText,
-		items:      make(chan item, 2), // Two items of buffering is sufficient for all state functions
+		items:      make(chan item),
 	}
+	go l.run()
 	return l
+}
+
+// run runs the state machine for the lexer.
+func (l *lexer) run() {
+	for l.state = lexText; l.state != nil; {
+		l.state = l.state(l)
+	}
 }
 
 // state functions
@@ -257,16 +230,18 @@ func lexText(l *lexer) stateFn {
 
 // lexLeftDelim scans the left delimiter, which is known to be present.
 func lexLeftDelim(l *lexer) stateFn {
-	if strings.HasPrefix(l.input[l.pos:], l.leftDelim+leftComment) {
+	l.pos += len(l.leftDelim)
+	if strings.HasPrefix(l.input[l.pos:], leftComment) {
 		return lexComment
 	}
-	l.pos += len(l.leftDelim)
 	l.emit(itemLeftDelim)
+	l.parenDepth = 0
 	return lexInsideAction
 }
 
 // lexComment scans a comment. The left comment marker is known to be present.
 func lexComment(l *lexer) stateFn {
+	l.pos += len(leftComment)
 	i := strings.Index(l.input[l.pos:], rightComment+l.rightDelim)
 	if i < 0 {
 		return l.errorf("unclosed comment")
@@ -286,16 +261,19 @@ func lexRightDelim(l *lexer) stateFn {
 // lexInsideAction scans the elements inside action delimiters.
 func lexInsideAction(l *lexer) stateFn {
 	// Either number, quoted string, or identifier.
-	// Spaces separate and are ignored.
+	// Spaces separate arguments; runs of spaces turn into itemSpace.
 	// Pipe symbols separate and are emitted.
 	if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
-		return lexRightDelim
+		if l.parenDepth == 0 {
+			return lexRightDelim
+		}
+		return l.errorf("unclosed left paren")
 	}
 	switch r := l.next(); {
-	case r == eof || r == '\n':
+	case r == eof || isEndOfLine(r):
 		return l.errorf("unclosed action")
 	case isSpace(r):
-		l.ignore()
+		return lexSpace
 	case r == ':':
 		if l.next() != '=' {
 			return l.errorf("expected :=")
@@ -326,12 +304,33 @@ func lexInsideAction(l *lexer) stateFn {
 	case isAlphaNumeric(r):
 		l.backup()
 		return lexIdentifier
+	case r == '(':
+		l.emit(itemLeftParen)
+		l.parenDepth++
+		return lexInsideAction
+	case r == ')':
+		l.emit(itemRightParen)
+		l.parenDepth--
+		if l.parenDepth < 0 {
+			return l.errorf("unexpected right paren %#U", r)
+		}
+		return lexInsideAction
 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
 		l.emit(itemChar)
 		return lexInsideAction
 	default:
 		return l.errorf("unrecognized character in action: %#U", r)
 	}
+	return lexInsideAction
+}
+
+// lexSpace scans a run of space characters.
+// One space has already been seen.
+func lexSpace(l *lexer) stateFn {
+	for isSpace(l.peek()) {
+		l.next()
+	}
+	l.emit(itemSpace)
 	return lexInsideAction
 }
 
@@ -348,7 +347,7 @@ Loop:
 			l.backup()
 			word := l.input[l.start:l.pos]
 			if !l.atTerminator() {
-				return l.errorf("unexpected character %+U", r)
+				return l.errorf("bad character %#U", r)
 			}
 			switch {
 			case key[word] > itemKeyword:
@@ -374,11 +373,11 @@ Loop:
 // arithmetic.
 func (l *lexer) atTerminator() bool {
 	r := l.peek()
-	if isSpace(r) {
+	if isSpace(r) || isEndOfLine(r) {
 		return true
 	}
 	switch r {
-	case eof, ',', '|', ':':
+	case eof, ',', '|', ':', ')', '(':
 		return true
 	}
 	// Does r start the delimiter? This can be ambiguous (with delim=="//", $x/2 will
@@ -391,7 +390,7 @@ func (l *lexer) atTerminator() bool {
 }
 
 // lexChar scans a character constant. The initial quote is already
-// scanned.  Syntax checking is done by the parse.
+// scanned.  Syntax checking is done by the parser.
 func lexChar(l *lexer) stateFn {
 Loop:
 	for {
@@ -494,11 +493,12 @@ Loop:
 
 // isSpace reports whether r is a space character.
 func isSpace(r rune) bool {
-	switch r {
-	case ' ', '\t', '\n', '\r':
-		return true
-	}
-	return false
+	return r == ' ' || r == '\t'
+}
+
+// isEndOfLine reports whether r is an end-of-line character
+func isEndOfLine(r rune) bool {
+	return r == '\r' || r == '\n'
 }
 
 // isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.

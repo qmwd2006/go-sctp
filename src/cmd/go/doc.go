@@ -145,13 +145,16 @@ Run godoc on package sources
 
 Usage:
 
-	go doc [packages]
+	go doc [-n] [-x] [packages]
 
 Doc runs the godoc command on the packages named by the
 import paths.
 
 For more about godoc, see 'godoc godoc'.
 For more about specifying packages, see 'go help packages'.
+
+The -n flag prints commands that would be executed.
+The -x flag prints commands as they are executed.
 
 To run godoc with specific options, run godoc itself.
 
@@ -192,13 +195,16 @@ Run gofmt on package sources
 
 Usage:
 
-	go fmt [packages]
+	go fmt [-n] [-x] [packages]
 
 Fmt runs the command 'gofmt -l -w' on the packages named
 by the import paths.  It prints the names of the files that are modified.
 
 For more about gofmt, see 'godoc gofmt'.
 For more about specifying packages, see 'go help packages'.
+
+The -n flag prints commands that would be executed.
+The -x flag prints commands as they are executed.
 
 To run gofmt with specific options, run gofmt itself.
 
@@ -287,12 +293,14 @@ being passed to the template is:
         Root       string // Go root or Go path dir containing this package
 
         // Source files
-        GoFiles  []string  // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-        CgoFiles []string  // .go sources files that import "C"
-        CFiles   []string  // .c source files
-        HFiles   []string  // .h source files
-        SFiles   []string  // .s source files
-        SysoFiles []string // .syso object files to add to archive
+        GoFiles  []string     // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+        CgoFiles []string     // .go sources files that import "C"
+        CFiles   []string     // .c source files
+        HFiles   []string     // .h source files
+        SFiles   []string     // .s source files
+        SysoFiles []string    // .syso object files to add to archive
+        SwigFiles []string    // .swig files
+        SwigCXXFiles []string // .swigcxx files
 
         // Cgo directives
         CgoCFLAGS    []string // cgo: flags for C compiler
@@ -414,7 +422,7 @@ Run go tool vet on packages
 
 Usage:
 
-	go vet [packages]
+	go vet [-n] [-x] [packages]
 
 Vet runs the Go vet command on the packages named by the import paths.
 
@@ -422,6 +430,9 @@ For more about vet, see 'godoc vet'.
 For more about specifying packages, see 'go help packages'.
 
 To run the vet tool with specific options, run 'go tool vet'.
+
+The -n flag prints commands that would be executed.
+The -x flag prints commands as they are executed.
 
 See also: go fmt, go fix.
 
@@ -537,7 +548,7 @@ in those files and ignoring any other files in the directory.
 
 Remote import path syntax
 
-An import path (see 'go help importpath') denotes a package
+An import path (see 'go help packages') denotes a package
 stored in the local file system.  Certain import paths also
 describe how to obtain the source code for the package using
 a revision control system.

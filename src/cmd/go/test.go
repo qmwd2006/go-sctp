@@ -276,7 +276,9 @@ func runTest(cmd *Command, args []string) {
 
 		all := []string{}
 		for path := range deps {
-			all = append(all, path)
+			if !build.IsLocalImport(path) {
+				all = append(all, path)
+			}
 		}
 		sort.Strings(all)
 
@@ -593,6 +595,25 @@ func (b *builder) runTest(a *action) error {
 	} else {
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
+	}
+
+	// If there are any local SWIG dependencies, we want to load
+	// the shared library from the build directory.
+	if a.p.usesSwig() {
+		env := os.Environ()
+		found := false
+		prefix := "LD_LIBRARY_PATH="
+		for i, v := range env {
+			if strings.HasPrefix(v, prefix) {
+				env[i] = v + ":."
+				found = true
+				break
+			}
+		}
+		if !found {
+			env = append(env, "LD_LIBRARY_PATH=.")
+		}
+		cmd.Env = env
 	}
 
 	t0 := time.Now()

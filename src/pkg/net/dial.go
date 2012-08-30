@@ -193,6 +193,12 @@ func Listen(net, laddr string) (Listener, error) {
 			la = a.(*TCPAddr)
 		}
 		return ListenTCP(net, la)
+  case "sctp", "sctp4", "sctp6":
+    var la *SCTPAddr
+    if a != nil {
+      la = a.(*SCTPAddr)
+    }
+    return ListenOneToOneSCTP(net, la)
 	case "unix", "unixpacket":
 		var la *UnixAddr
 		if a != nil {

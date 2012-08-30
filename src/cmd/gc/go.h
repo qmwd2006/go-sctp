@@ -182,6 +182,9 @@ struct	Type
 
 	int32	maplineno;	// first use of TFORW as map key
 	int32	embedlineno;	// first use of TFORW as embedded type
+	
+	// for TFORW, where to copy the eventual value to
+	NodeList	*copyto;
 };
 #define	T	((Type*)0)
 
@@ -234,6 +237,7 @@ struct	Node
 	uchar	addable;	// type of addressability - 0 is not addressable
 	uchar	trecur;		// to detect loops
 	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
+	uchar	bounded;	// bounds check unnecessary
 	uchar	class;		// PPARAM, PAUTO, PEXTERN, etc
 	uchar	method;		// OCALLMETH name
 	uchar	embedded;	// ODCLFIELD embedded type
@@ -484,10 +488,12 @@ enum
 	ODDD,
 	ODDDARG,
 	OINLCALL,	// intermediary representation of an inlined call
+	OEFACE,	// itable and data words of empty-interface value
 	OITAB,	// itable word of interface value
 
 	// for back ends
 	OCMP, ODEC, OEXTEND, OINC, OREGISTER, OINDREG,
+	OLROT,
 
 	OEND,
 };
@@ -761,6 +767,7 @@ EXTERN	Pkg*	importpkg;	// package being imported
 EXTERN	Pkg*	structpkg;	// package that declared struct, during import
 EXTERN	Pkg*	builtinpkg;	// fake package for builtins
 EXTERN	Pkg*	gostringpkg;	// fake pkg for Go strings
+EXTERN	Pkg*	itabpkg;	// fake pkg for itab cache
 EXTERN	Pkg*	runtimepkg;	// package runtime
 EXTERN	Pkg*	stringpkg;	// fake package for C strings
 EXTERN	Pkg*	typepkg;	// fake package for runtime type info
@@ -907,7 +914,7 @@ Mpflt*	truncfltlit(Mpflt *oldv, Type *t);
  *	cplx.c
  */
 void	complexadd(int op, Node *nl, Node *nr, Node *res);
-void	complexbool(int op, Node *nl, Node *nr, int true, Prog *to);
+void	complexbool(int op, Node *nl, Node *nr, int true, int likely, Prog *to);
 void	complexgen(Node *n, Node *res);
 void	complexminus(Node *nl, Node *res);
 void	complexmove(Node *f, Node *t);
@@ -921,7 +928,7 @@ void	nodfconst(Node *n, Type *t, Mpflt* fval);
 void	addmethod(Sym *sf, Type *t, int local);
 void	addvar(Node *n, Type *t, int ctxt);
 NodeList*	checkarglist(NodeList *all, int input);
-Node*	colas(NodeList *left, NodeList *right);
+Node*	colas(NodeList *left, NodeList *right, int32 lno);
 void	colasdefn(NodeList *left, Node *defn);
 NodeList*	constiter(NodeList *vl, Node *t, NodeList *cl);
 Node*	dclname(Sym *s);
@@ -940,7 +947,6 @@ Node*	methodname(Node *n, Type *t);
 Node*	methodname1(Node *n, Node *t);
 Sym*	methodsym(Sym *nsym, Type *t0, int iface);
 Node*	newname(Sym *s);
-Type*	newtype(Sym *s);
 Node*	oldname(Sym *s);
 void	popdcl(void);
 void	poptodcl(void);
@@ -985,6 +991,8 @@ void	dumplist(char *s, NodeList *l);
 void	addrescapes(Node *n);
 void	cgen_as(Node *nl, Node *nr);
 void	cgen_callmeth(Node *n, int proc);
+void	cgen_eface(Node* n, Node* res);
+void	cgen_slice(Node* n, Node* res);
 void	clearlabels(void);
 void	checklabels(void);
 int	dotoffset(Node *n, int *oary, Node **nn);
@@ -1248,9 +1256,7 @@ int	islvalue(Node *n);
 Node*	typecheck(Node **np, int top);
 void	typechecklist(NodeList *l, int top);
 Node*	typecheckdef(Node *n);
-void	resumetypecopy(void);
 void	copytype(Node *n, Type *t);
-void	defertypecopy(Node *n, Type *t);
 void	queuemethod(Node *n);
 
 /*
@@ -1302,7 +1308,8 @@ EXTERN	Node*	nodfp;
 
 int	anyregalloc(void);
 void	betypeinit(void);
-void	bgen(Node *n, int true, Prog *to);
+void	bgen(Node *n, int true, int likely, Prog *to);
+void	checkref(Node*);
 void	cgen(Node*, Node*);
 void	cgen_asop(Node *n);
 void	cgen_call(Node *n, int proc);
@@ -1324,7 +1331,7 @@ void	gdatacomplex(Node*, Mpcplx*);
 void	gdatastring(Node*, Strlit*);
 void	genembedtramp(Type*, Type*, Sym*, int iface);
 void	ggloblnod(Node *nam, int32 width);
-void	ggloblsym(Sym *s, int32 width, int dupok);
+void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
 Prog*	gjmp(Prog*);
 void	gused(Node*);
 int	isfat(Type*);

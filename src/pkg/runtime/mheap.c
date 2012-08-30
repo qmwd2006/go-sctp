@@ -27,11 +27,24 @@ RecordSpan(void *vh, byte *p)
 {
 	MHeap *h;
 	MSpan *s;
+	MSpan **all;
+	uint32 cap;
 
 	h = vh;
 	s = (MSpan*)p;
-	s->allnext = h->allspans;
-	h->allspans = s;
+	if(h->nspan >= h->nspancap) {
+		cap = 64*1024/sizeof(all[0]);
+		if(cap < h->nspancap*3/2)
+			cap = h->nspancap*3/2;
+		all = (MSpan**)runtime·SysAlloc(cap*sizeof(all[0]));
+		if(h->allspans) {
+			runtime·memmove(all, h->allspans, h->nspancap*sizeof(all[0]));
+			runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]));
+		}
+		h->allspans = all;
+		h->nspancap = cap;
+	}
+	h->allspans[h->nspan++] = s;
 }
 
 // Initialize the heap; fetch memory using alloc.
@@ -53,12 +66,12 @@ runtime·MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
 // Allocate a new span of npage pages from the heap
 // and record its size class in the HeapMap and HeapMapCache.
 MSpan*
-runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct)
+runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32 zeroed)
 {
 	MSpan *s;
 
 	runtime·lock(h);
-	runtime·purgecachedstats(m);
+	runtime·purgecachedstats(m->mcache);
 	s = MHeap_AllocLocked(h, npage, sizeclass);
 	if(s != nil) {
 		mstats.heap_inuse += npage<<PageShift;
@@ -68,6 +81,8 @@ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct)
 		}
 	}
 	runtime·unlock(h);
+	if(s != nil && *(uintptr*)(s->start<<PageShift) != 0 && zeroed)
+		runtime·memclr((byte*)(s->start<<PageShift), s->npages<<PageShift);
 	return s;
 }
 
@@ -124,9 +139,6 @@ HaveSpan:
 		t->state = MSpanInUse;
 		MHeap_FreeLocked(h, t);
 	}
-
-	if(*(uintptr*)(s->start<<PageShift) != 0)
-		runtime·memclr((byte*)(s->start<<PageShift), s->npages<<PageShift);
 
 	// Record span info, because gc needs to be
 	// able to map interior pointer to containing span.
@@ -259,7 +271,7 @@ void
 runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct)
 {
 	runtime·lock(h);
-	runtime·purgecachedstats(m);
+	runtime·purgecachedstats(m->mcache);
 	mstats.heap_inuse -= s->npages<<PageShift;
 	if(acct) {
 		mstats.heap_alloc -= s->npages<<PageShift;

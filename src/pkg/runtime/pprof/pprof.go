@@ -23,7 +23,7 @@ import (
 // BUG(rsc): A bug in the OS X Snow Leopard 64-bit kernel prevents
 // CPU profiling from giving accurate results on that system.
 
-// A Profile is a collection of stack traces showing the call sequences
+// Profile is a collection of stack traces showing the call sequences
 // that led to instances of a particular event, such as allocation.
 // Packages can create and maintain their own profiles; the most common
 // use is for tracking resources that must be explicitly closed, such as files
@@ -250,7 +250,7 @@ func (x stackProfile) Less(i, j int) bool {
 	return len(t) < len(u)
 }
 
-// A countProfile is a set of stack traces to be printed as counts
+// countProfile is a set of stack traces to be printed as counts
 // grouped by stack trace.  There are multiple implementations:
 // all that matters is that we can find out how many traces there are
 // and obtain each trace in turn.
@@ -352,26 +352,26 @@ func WriteHeapProfile(w io.Writer) error {
 
 // countHeap returns the number of records in the heap profile.
 func countHeap() int {
-	n, _ := runtime.MemProfile(nil, false)
+	n, _ := runtime.MemProfile(nil, true)
 	return n
 }
 
-// writeHeapProfile writes the current runtime heap profile to w.
+// writeHeap writes the current runtime heap profile to w.
 func writeHeap(w io.Writer, debug int) error {
-	// Find out how many records there are (MemProfile(nil, false)),
+	// Find out how many records there are (MemProfile(nil, true)),
 	// allocate that many records, and get the data.
 	// There's a race—more records might be added between
 	// the two calls—so allocate a few extra records for safety
 	// and also try again if we're very unlucky.
 	// The loop should only execute one iteration in the common case.
 	var p []runtime.MemProfileRecord
-	n, ok := runtime.MemProfile(nil, false)
+	n, ok := runtime.MemProfile(nil, true)
 	for {
 		// Allocate room for a slightly bigger profile,
 		// in case a few more entries have been added
 		// since the call to MemProfile.
 		p = make([]runtime.MemProfileRecord, n+50)
-		n, ok = runtime.MemProfile(p, false)
+		n, ok = runtime.MemProfile(p, true)
 		if ok {
 			p = p[0:n]
 			break
@@ -431,11 +431,14 @@ func writeHeap(w io.Writer, debug int) error {
 		fmt.Fprintf(w, "# Sys = %d\n", s.Sys)
 		fmt.Fprintf(w, "# Lookups = %d\n", s.Lookups)
 		fmt.Fprintf(w, "# Mallocs = %d\n", s.Mallocs)
+		fmt.Fprintf(w, "# Frees = %d\n", s.Frees)
 
 		fmt.Fprintf(w, "# HeapAlloc = %d\n", s.HeapAlloc)
 		fmt.Fprintf(w, "# HeapSys = %d\n", s.HeapSys)
 		fmt.Fprintf(w, "# HeapIdle = %d\n", s.HeapIdle)
 		fmt.Fprintf(w, "# HeapInuse = %d\n", s.HeapInuse)
+		fmt.Fprintf(w, "# HeapReleased = %d\n", s.HeapReleased)
+		fmt.Fprintf(w, "# HeapObjects = %d\n", s.HeapObjects)
 
 		fmt.Fprintf(w, "# Stack = %d / %d\n", s.StackInuse, s.StackSys)
 		fmt.Fprintf(w, "# MSpan = %d / %d\n", s.MSpanInuse, s.MSpanSys)

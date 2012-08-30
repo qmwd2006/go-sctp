@@ -159,7 +159,7 @@ relocsym(Sym *s)
 			diag("%s: invalid relocation %d+%d not in [%d,%d)", s->name, off, siz&~Rbig, 0, s->np);
 			continue;
 		}
-		if(r->sym != S && (r->sym->type == 0 || r->sym->type == SXREF)) {
+		if(r->sym != S && (r->sym->type & SMASK == 0 || r->sym->type & SMASK == SXREF)) {
 			diag("%s: not defined", r->sym->name);
 			continue;
 		}
@@ -282,7 +282,7 @@ dynrelocsym(Sym *s)
 	}
 
 	for(r=s->r; r<s->r+s->nr; r++)
-		if(r->sym->type == SDYNIMPORT || r->type >= 256)
+		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256)
 			adddynrel(s, r);
 }
 
@@ -1012,6 +1012,8 @@ textaddress(void)
 			continue;
 		if(sym->align != 0)
 			va = rnd(va, sym->align);
+		else if(sym->text != P)
+			va = rnd(va, FuncAlign);
 		sym->value = 0;
 		for(sub = sym; sub != S; sub = sub->sub) {
 			sub->value += va;
@@ -1058,7 +1060,7 @@ address(void)
 	segdata.filelen = 0;
 	if(HEADTYPE == Hwindows)
 		segdata.fileoff = segtext.fileoff + rnd(segtext.len, PEFILEALIGN);
-	if(HEADTYPE == Hplan9x32)
+	if(HEADTYPE == Hplan9x64 || HEADTYPE == Hplan9x32)
 		segdata.fileoff = segtext.fileoff + segtext.filelen;
 	data = nil;
 	noptr = nil;

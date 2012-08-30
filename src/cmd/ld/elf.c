@@ -11,7 +11,7 @@
  * in order to write the code just once.  The 64-bit data structure is
  * written in the 32-bit format on the 32-bit machines.
  */
-#define	NSECT	32
+#define	NSECT	48
 
 int	iself;
 
@@ -52,6 +52,9 @@ elfinit(void)
 		break;
 
 	// 32-bit architectures
+	case '5':
+		hdr.flags = 0x5000002; // has entry point, Version5 EABI
+		// fallthrough
 	default:
 		hdr.phoff = ELF32HDRSIZE;	/* Must be be ELF32HDRSIZE: first PHdr must follow ELF header */
 		hdr.shoff = ELF32HDRSIZE;	/* Will move as we add PHeaders */

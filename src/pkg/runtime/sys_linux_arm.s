@@ -34,6 +34,7 @@
 #define SYS_sched_yield (SYS_BASE + 158)
 #define SYS_select (SYS_BASE + 142) // newselect
 #define SYS_ugetrlimit (SYS_BASE + 191)
+#define SYS_sched_getaffinity (SYS_BASE + 242)
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 #define SYS_ARM_cacheflush (ARM_BASE + 2)
@@ -293,6 +294,14 @@ TEXT runtime·sigaltstack(SB),7,$0
 	RET
 
 TEXT runtime·sigtramp(SB),7,$24
+	// this might be called in external code context,
+	// where g and m are not set.
+	// first save R0, becuase cgo_load_gm will clobber it
+	MOVW	R0, 4(R13)
+	MOVW	cgo_load_gm(SB), R0
+	CMP 	$0, R0
+	BL.NE	(R0)
+
 	// save g
 	MOVW	g, R3
 	MOVW	g, 20(R13)
@@ -301,7 +310,7 @@ TEXT runtime·sigtramp(SB),7,$24
 	MOVW	m_gsignal(m), g
 
 	// copy arguments for call to sighandler
-	MOVW	R0, 4(R13)
+	// R0 is already saved above
 	MOVW	R1, 8(R13)
 	MOVW	R2, 12(R13)
 	MOVW	R3, 16(R13)
@@ -383,5 +392,13 @@ TEXT runtime·casp(SB),7,$0
 
 TEXT runtime·osyield(SB),7,$0
 	MOVW	$SYS_sched_yield, R7
+	SWI	$0
+	RET
+
+TEXT runtime·sched_getaffinity(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
+	MOVW	$SYS_sched_getaffinity, R7
 	SWI	$0
 	RET

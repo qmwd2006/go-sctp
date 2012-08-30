@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of March 17, 2012",
+	"Subtitle": "Version of August 29, 2012",
 	"Path": "/ref/spec"
 }-->
 
@@ -15,7 +15,6 @@ TODO
 [ ] need explicit language about the result type of operations
 [ ] should probably write something about evaluation order of statements even
 	though obvious
-[ ] review language on implicit dereferencing
 -->
 
 
@@ -89,7 +88,8 @@ Source code is Unicode text encoded in
 canonicalized, so a single accented code point is distinct from the
 same character constructed from combining an accent and a letter;
 those are treated as two code points.  For simplicity, this document
-will use the term <i>character</i> to refer to a Unicode code point.
+will use the unqualified term <i>character</i> to refer to a Unicode code point
+in the source text.
 </p>
 <p>
 Each code point is distinct; for instance, upper and lower case letters
@@ -198,7 +198,7 @@ token is
 	    <a href="#Integer_literals">integer</a>,
 	    <a href="#Floating-point_literals">floating-point</a>,
 	    <a href="#Imaginary_literals">imaginary</a>,
-	    <a href="#Character_literals">character</a>, or
+	    <a href="#Rune_literals">rune</a>, or
 	    <a href="#String_literals">string</a> literal
 	</li>
 
@@ -360,13 +360,15 @@ imaginary_lit = (decimals | float_lit) "i" .
 </pre>
 
 
-<h3 id="Character_literals">Character literals</h3>
+<h3 id="Rune_literals">Rune literals</h3>
 
 <p>
-A character literal represents a <a href="#Constants">character constant</a>,
-typically a Unicode code point, as one or more characters enclosed in single
-quotes.  Within the quotes, any character may appear except single
-quote and newline. A single quoted character represents itself,
+A rune literal represents a <a href="#Constants">rune constant</a>,
+an integer value identifying a Unicode code point.
+A rune literal is expressed as one or more characters enclosed in single quotes.
+Within the quotes, any character may appear except single
+quote and newline. A single quoted character represents the Unicode value
+of the character itself,
 while multi-character sequences beginning with a backslash encode
 values in various formats.
 </p>
@@ -380,7 +382,7 @@ a literal <code>a</code>, Unicode U+0061, value <code>0x61</code>, while
 a literal <code>a</code>-dieresis, U+00E4, value <code>0xe4</code>.
 </p>
 <p>
-Several backslash escapes allow arbitrary values to be represented
+Several backslash escapes allow arbitrary values to be encoded as
 as ASCII text.  There are four ways to represent the integer value
 as a numeric constant: <code>\x</code> followed by exactly two hexadecimal
 digits; <code>\u</code> followed by exactly four hexadecimal digits;
@@ -409,11 +411,11 @@ After a backslash, certain single-character escapes represent special values:
 \t   U+0009 horizontal tab
 \v   U+000b vertical tab
 \\   U+005c backslash
-\'   U+0027 single quote  (valid escape only within character literals)
+\'   U+0027 single quote  (valid escape only within rune literals)
 \"   U+0022 double quote  (valid escape only within string literals)
 </pre>
 <p>
-All other sequences starting with a backslash are illegal inside character literals.
+All other sequences starting with a backslash are illegal inside rune literals.
 </p>
 <pre class="ebnf">
 char_lit         = "'" ( unicode_value | byte_value ) "'" .
@@ -439,6 +441,11 @@ escaped_char     = `\` ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | `\` | "'" | `
 '\xff'
 '\u12e4'
 '\U00101234'
+'aa'         // illegal: too many characters
+'\xa'        // illegal: too few hexadecimal digits
+'\0'         // illegal: too few octal digits
+'\uDFFF'     // illegal: surrogate half
+'\U00110000' // illegal: invalid Unicode code point
 </pre>
 
 
@@ -453,7 +460,8 @@ raw string literals and interpreted string literals.
 Raw string literals are character sequences between back quotes
 <code>``</code>.  Within the quotes, any character is legal except
 back quote. The value of a raw string literal is the
-string composed of the uninterpreted characters between the quotes;
+string composed of the uninterpreted (implicitly UTF-8-encoded) characters
+between the quotes;
 in particular, backslashes have no special meaning and the string may
 contain newlines.
 Carriage returns inside raw string literals
@@ -464,8 +472,9 @@ Interpreted string literals are character sequences between double
 quotes <code>&quot;&quot;</code>. The text between the quotes,
 which may not contain newlines, forms the
 value of the literal, with backslash escapes interpreted as they
-are in character literals (except that <code>\'</code> is illegal and
-<code>\"</code> is legal).  The three-digit octal (<code>\</code><i>nnn</i>)
+are in rune literals (except that <code>\'</code> is illegal and
+<code>\"</code> is legal), with the same restrictions.
+The three-digit octal (<code>\</code><i>nnn</i>)
 and two-digit hexadecimal (<code>\x</code><i>nn</i>) escapes represent individual
 <i>bytes</i> of the resulting string; all other escapes represent
 the (possibly multi-byte) UTF-8 encoding of individual <i>characters</i>.
@@ -492,6 +501,8 @@ interpreted_string_lit = `"` { unicode_value | byte_value } `"` .
 "日本語"
 "\u65e5本\U00008a9e"
 "\xff\u00FF"
+"\uD800"       // illegal: surrogate half
+"\U00110000"   // illegal: invalid Unicode code point
 </pre>
 
 <p>
@@ -501,15 +512,15 @@ These examples all represent the same string:
 <pre>
 "日本語"                                 // UTF-8 input text
 `日本語`                                 // UTF-8 input text as a raw literal
-"\u65e5\u672c\u8a9e"                    // The explicit Unicode code points
-"\U000065e5\U0000672c\U00008a9e"        // The explicit Unicode code points
-"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // The explicit UTF-8 bytes
+"\u65e5\u672c\u8a9e"                    // the explicit Unicode code points
+"\U000065e5\U0000672c\U00008a9e"        // the explicit Unicode code points
+"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"  // the explicit UTF-8 bytes
 </pre>
 
 <p>
 If the source code represents a character as two code points, such as
 a combining form involving an accent and a letter, the result will be
-an error if placed in a character literal (it is not a single code
+an error if placed in a rune literal (it is not a single code
 point), and will appear as two code points if placed in a string
 literal.
 </p>
@@ -518,7 +529,7 @@ literal.
 <h2 id="Constants">Constants</h2>
 
 <p>There are <i>boolean constants</i>,
-<i>character constants</i>,
+<i>rune constants</i>,
 <i>integer constants</i>,
 <i>floating-point constants</i>, <i>complex constants</i>,
 and <i>string constants</i>. Character, integer, floating-point,
@@ -528,7 +539,7 @@ collectively called <i>numeric constants</i>.
 
 <p>
 A constant value is represented by a
-<a href="#Character_literals">character</a>,
+<a href="#Rune_literals">rune</a>,
 <a href="#Integer_literals">integer</a>,
 <a href="#Floating-point_literals">floating-point</a>,
 <a href="#Imaginary_literals">imaginary</a>,
@@ -622,14 +633,15 @@ expressions</a>.
 
 <p>
 A type determines the set of values and operations specific to values of that
-type.  A type may be specified by a (possibly qualified) <i>type name</i>
-(§<a href="#Qualified_identifiers">Qualified identifier</a>, §<a href="#Type_declarations">Type declarations</a>) or a <i>type literal</i>,
+type.  A type may be specified by a
+(possibly <a href="#Qualified_identifiers">qualified</a>) <i>type name</i>
+(§<a href="#Type_declarations">Type declarations</a>) or a <i>type literal</i>,
 which composes a new type from previously declared types.
 </p>
 
 <pre class="ebnf">
 Type      = TypeName | TypeLit | "(" Type ")" .
-TypeName  = QualifiedIdent .
+TypeName  = identifier | QualifiedIdent .
 TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
 	    SliceType | MapType | ChannelType .
 </pre>
@@ -684,6 +696,8 @@ consists of all methods with receiver type <code>T</code>.
 The method set of the corresponding pointer type <code>*T</code>
 is the set of all methods with receiver <code>*T</code> or <code>T</code>
 (that is, it also contains the method set of <code>T</code>).
+Further rules apply to structs containing anonymous fields, as described
+in the section on <a href="#Struct_types">struct types</a>.
 Any other type has an empty method set.
 In a method set, each method must have a
 <a href="#Uniqueness_of_identifiers">unique</a> <a href="#MethodName">method name</a>.
@@ -955,28 +969,39 @@ struct {
 </pre>
 
 <p>
-Fields and methods (§<a href="#Method_declarations">Method declarations</a>) of an anonymous field are
-promoted to be ordinary fields and methods of the struct (§<a href="#Selectors">Selectors</a>).
-The following rules apply for a struct type <code>S</code> and
-a type named <code>T</code>:
+A field or <a href="#Method_declarations">method</a> <code>f</code> of an
+anonymous field in a struct <code>x</code> is called <i>promoted</i> if
+<code>x.f</code> is a legal <a href="#Selectors">selector</a> that denotes
+that field or method <code>f</code>.
+</p>
+
+<p>
+Promoted fields act like ordinary fields
+of a struct except that they cannot be used as field names in
+<a href="#Composite_literals">composite literals</a> of the struct.
+</p>
+
+<p>
+Given a struct type <code>S</code> and a type named <code>T</code>,
+promoted methods are included in the method set of the struct as follows:
 </p>
 <ul>
-	<li>If <code>S</code> contains an anonymous field <code>T</code>, the
-	    <a href="#Method_sets">method set</a> of <code>S</code> includes the
-	    method set of <code>T</code>.
+	<li>
+	If <code>S</code> contains an anonymous field <code>T</code>,
+	the <a href="#Method_sets">method sets</a> of <code>S</code>
+	and <code>*S</code> both include promoted methods with receiver
+	<code>T</code>. The method set of <code>*S</code> also
+	includes promoted methods with receiver <code>*T</code>.
 	</li>
-
-	<li>If <code>S</code> contains an anonymous field <code>*T</code>, the
-	    method set of <code>S</code> includes the method set of <code>*T</code>
-	    (which itself includes the method set of <code>T</code>).
-	</li>
-
-	<li>If <code>S</code> contains an anonymous field <code>T</code> or
-	    <code>*T</code>, the method set of <code>*S</code> includes the
-	    method set of <code>*T</code> (which itself includes the method
-	    set of <code>T</code>).
+	
+	<li>
+	If <code>S</code> contains an anonymous field <code>*T</code>,
+	the method sets of <code>S</code> and <code>*S</code> both
+	include promoted methods with receiver <code>T</code> or
+	<code>*T</code>.
 	</li>
 </ul>
+
 <p>
 A field declaration may be followed by an optional string literal <i>tag</i>,
 which becomes an attribute for all the fields in the corresponding
@@ -2013,25 +2038,33 @@ operators and functions to operands.
 <h3 id="Operands">Operands</h3>
 
 <p>
-Operands denote the elementary values in an expression.
+Operands denote the elementary values in an expression. An operand may be a
+literal, a (possibly <a href="#Qualified_identifiers">qualified</a>) identifier
+denoting a
+<a href="#Constant_declarations">constant</a>,
+<a href="#Variable_declarations">variable</a>, or
+<a href="#Function_declarations">function</a>,
+a <a href="#Method_expressions">method expression</a> yielding a function,
+or a parenthesized expression.
 </p>
 
 <pre class="ebnf">
-Operand    = Literal | QualifiedIdent | MethodExpr | "(" Expression ")" .
+Operand    = Literal | OperandName | MethodExpr | "(" Expression ")" .
 Literal    = BasicLit | CompositeLit | FunctionLit .
 BasicLit   = int_lit | float_lit | imaginary_lit | char_lit | string_lit .
+OperandName = identifier | QualifiedIdent.
 </pre>
-
 
 <h3 id="Qualified_identifiers">Qualified identifiers</h3>
 
 <p>
-A qualified identifier is a non-<a href="#Blank_identifier">blank</a> identifier
-qualified by a package name prefix.
+A qualified identifier is an identifier qualified with a package name prefix.
+Both the package name and the identifier must not be
+<a href="#Blank_identifier">blank</a>.
 </p>
 
 <pre class="ebnf">
-QualifiedIdent = [ PackageName "." ] identifier .
+QualifiedIdent = PackageName "." identifier .
 </pre>
 
 <p>
@@ -2185,7 +2218,7 @@ Within a composite literal of array, slice, or map type <code>T</code>,
 elements that are themselves composite literals may elide the respective
 literal type if it is identical to the element type of <code>T</code>.
 Similarly, elements that are addresses of composite literals may elide
-the <code>&amp;T</code> when the the element type is <code>*T</code>.
+the <code>&amp;T</code> when the element type is <code>*T</code>.
 </p>
 
 
@@ -2302,7 +2335,6 @@ Point{1, 2}
 m["foo"]
 s[i : j + 1]
 obj.color
-math.Sin
 f.p[i].x()
 </pre>
 
@@ -2310,7 +2342,9 @@ f.p[i].x()
 <h3 id="Selectors">Selectors</h3>
 
 <p>
-A primary expression of the form
+For a <a href="#Primary_expressions">primary expression</a> <code>x</code>
+that is not a <a href="#Package_clause">package name</a>, the
+<i>selector expression</i>
 </p>
 
 <pre>
@@ -2318,17 +2352,20 @@ x.f
 </pre>
 
 <p>
-denotes the field or method <code>f</code> of the value denoted by <code>x</code>
-(or sometimes <code>*x</code>; see below). The identifier <code>f</code>
-is called the (field or method)
-<i>selector</i>; it must not be the <a href="#Blank_identifier">blank identifier</a>.
-The type of the expression is the type of <code>f</code>.
+denotes the field or method <code>f</code> of the value <code>x</code>
+(or sometimes <code>*x</code>; see below).
+The identifier <code>f</code> is called the (field or method) <i>selector</i>;
+it must not be the <a href="#Blank_identifier">blank identifier</a>.
+The type of the selector expression is the type of <code>f</code>.
+If <code>x</code> is a package name, see the section on
+<a href="#Qualified_identifiers">qualified identifiers</a>.
 </p>
+
 <p>
 A selector <code>f</code> may denote a field or method <code>f</code> of
 a type <code>T</code>, or it may refer
-to a field or method <code>f</code> of a nested anonymous field of
-<code>T</code>.
+to a field or method <code>f</code> of a nested
+<a href="#Struct_types">anonymous field</a> of <code>T</code>.
 The number of anonymous fields traversed
 to reach <code>f</code> is called its <i>depth</i> in <code>T</code>.
 The depth of a field or method <code>f</code>
@@ -2337,9 +2374,11 @@ The depth of a field or method <code>f</code> declared in
 an anonymous field <code>A</code> in <code>T</code> is the
 depth of <code>f</code> in <code>A</code> plus one.
 </p>
+
 <p>
 The following rules apply to selectors:
 </p>
+
 <ol>
 <li>
 For a value <code>x</code> of type <code>T</code> or <code>*T</code>
@@ -2351,18 +2390,26 @@ If there is not exactly <a href="#Uniqueness_of_identifiers">one <code>f</code><
 with shallowest depth, the selector expression is illegal.
 </li>
 <li>
-For a variable <code>x</code> of type <code>I</code>
-where <code>I</code> is an interface type,
-<code>x.f</code> denotes the actual method with name <code>f</code> of the value assigned
-to <code>x</code> if there is such a method.
-If no value or <code>nil</code> was assigned to <code>x</code>, <code>x.f</code> is illegal.
+For a variable <code>x</code> of type <code>I</code> where <code>I</code>
+is an interface type, <code>x.f</code> denotes the actual method with name
+<code>f</code> of the value assigned to <code>x</code>.
+If there is no method with name <code>f</code> in the
+<a href="#Method_sets">method set</a> of <code>I</code>, the selector
+expression is illegal.
 </li>
 <li>
 In all other cases, <code>x.f</code> is illegal.
 </li>
+<li>
+If <code>x</code> is of pointer or interface type and has the value
+<code>nil</code>, assigning to, evaluating, or calling <code>x.f</code>
+causes a <a href="#Run_time_panics">run-time panic</a>.
+</li>
 </ol>
+
 <p>
-Selectors automatically dereference pointers to structs.
+Selectors automatically <a href="#Address_operators">dereference</a>
+pointers to structs.
 If <code>x</code> is a pointer to a struct, <code>x.y</code>
 is shorthand for <code>(*x).y</code>; if the field <code>y</code>
 is also a pointer to a struct, <code>x.y.z</code> is shorthand
@@ -2371,6 +2418,7 @@ If <code>x</code> contains an anonymous field of type <code>*A</code>,
 where <code>A</code> is also a struct type,
 <code>x.f</code> is a shortcut for <code>(*x.A).f</code>.
 </p>
+
 <p>
 For example, given the declarations:
 </p>
@@ -2963,10 +3011,10 @@ follows:
 </pre>
 
 <p>
-For floating-point numbers,
+For floating-point and complex numbers,
 <code>+x</code> is the same as <code>x</code>,
 while <code>-x</code> is the negation of <code>x</code>.
-The result of a floating-point division by zero is not specified beyond the
+The result of a floating-point or complex division by zero is not specified beyond the
 IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
 occurs is implementation-specific.
 </p>
@@ -3171,6 +3219,9 @@ the value of the receive operation <code>&lt;-ch</code> is the value received
 from the channel <code>ch</code>. The type of the value is the element type of
 the channel. The expression blocks until a value is available.
 Receiving from a <code>nil</code> channel blocks forever.
+Receiving from a <a href="#Close">closed</a> channel always succeeds,
+immediately returning the element type's <a href="#The_zero_value">zero
+value</a>.
 </p>
 
 <pre>
@@ -3191,11 +3242,11 @@ var x, ok = &lt;-ch
 </pre>
 
 <p>
-yields an additional result.
-The boolean variable <code>ok</code> indicates whether
-the received value was sent on the channel (<code>true</code>)
-or is a <a href="#The_zero_value">zero value</a> returned
-because the channel is closed and empty (<code>false</code>).
+yields an additional result of type <code>bool</code> reporting whether the
+communication succeeded. The value of <code>ok</code> is <code>true</code>
+if the value received was delivered by a successful send operation to the
+channel, or <code>false</code> if it is a zero value generated because the
+channel is closed and empty.
 </p>
 
 <!--
@@ -3477,7 +3528,7 @@ the range of valid Unicode code points are converted to <code>"\uFFFD"</code>.
 
 <pre>
 string('a')       // "a"
-string(-1)        // "\ufffd" == "\xef\xbf\xbd "
+string(-1)        // "\ufffd" == "\xef\xbf\xbd"
 string(0xf8)      // "\u00f8" == "ø" == "\xc3\xb8"
 type MyString string
 MyString(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
@@ -3547,7 +3598,7 @@ wherever it is legal to use an operand of boolean, numeric, or string type,
 respectively.
 Except for shift operations, if the operands of a binary operation are
 different kinds of untyped constants, the operation and, for non-boolean operations, the result use
-the kind that appears later in this list: integer, character, floating-point, complex.
+the kind that appears later in this list: integer, rune, floating-point, complex.
 For example, an untyped integer constant divided by an
 untyped complex constant yields an untyped complex constant.
 </p>
@@ -3575,7 +3626,7 @@ const f = int32(1) &lt;&lt; 33   // f == 0     (type int32)
 const g = float64(2) &gt;&gt; 1  // illegal    (float64(2) is a typed floating-point constant)
 const h = "foo" &gt; "bar"    // h == true  (untyped boolean constant)
 const j = true             // j == true  (untyped boolean constant)
-const k = 'w' + 1          // k == 'x'   (untyped character constant)
+const k = 'w' + 1          // k == 'x'   (untyped rune constant)
 const l = "hi"             // l == "hi"  (untyped string constant)
 const m = string(k)        // m == "x"   (type string)
 const Σ = 1 - 0.707i       //            (untyped complex constant)
@@ -3585,7 +3636,7 @@ const Φ = iota*1i - 1/1i   //            (untyped complex constant)
 
 <p>
 Applying the built-in function <code>complex</code> to untyped
-integer, character, or floating-point constants yields
+integer, rune, or floating-point constants yields
 an untyped complex constant.
 </p>
 
@@ -3655,8 +3706,10 @@ overflow etc. errors being caught.
 <h3 id="Order_of_evaluation">Order of evaluation</h3>
 
 <p>
-When evaluating the elements of an assignment or expression,
-all function calls, method calls and
+When evaluating the <a href="#Operands">operands</a> of an expression,
+<a href="#Assignments">assignment</a>, or
+<a href="#Return_statements">return statement</a>,
+all function calls, method calls, and
 communication operations are evaluated in lexical left-to-right
 order.
 </p>
@@ -3675,6 +3728,12 @@ However, the order of those events compared to the evaluation
 and indexing of <code>x</code> and the evaluation
 of <code>y</code> is not specified.
 </p>
+
+<pre>
+a := 1
+f := func() int { a = 2; return 3 }
+x := []int{a, f()}  // x may be [1, 3] or [2, 3]: evaluation order between a and f() is not specified
+</pre>
 
 <p>
 Floating-point operations within a single expression are evaluated according to
@@ -3866,7 +3925,11 @@ x, _ = f()  // ignore second value returned by f()
 In the second form, the number of operands on the left must equal the number
 of expressions on the right, each of which must be single-valued, and the
 <i>n</i>th expression on the right is assigned to the <i>n</i>th
-operand on the left.  The assignment proceeds in two phases.
+operand on the left.
+</p>
+
+<p>
+The assignment proceeds in two phases.
 First, the operands of <a href="#Indexes">index expressions</a>
 and <a href="#Address_operators">pointer indirections</a>
 (including implicit pointer indirections in <a href="#Selectors">selectors</a>)
@@ -3885,13 +3948,20 @@ i, x[i] = 1, 2  // set i = 1, x[0] = 2
 i = 0
 x[i], i = 2, 1  // set x[0] = 2, i = 1
 
-x[0], x[0] = 1, 2  // set x[0] = 1, then x[0] = 2 (so x[0] = 2 at end)
+x[0], x[0] = 1, 2  // set x[0] = 1, then x[0] = 2 (so x[0] == 2 at end)
 
 x[1], x[3] = 4, 5  // set x[1] = 4, then panic setting x[3] = 5.
 
 type Point struct { x, y int }
 var p *Point
 x[2], p.x = 6, 7  // set x[2] = 6, then panic setting p.x = 7
+
+i = 2
+x = []int{3, 5, 7}
+for i, x[i] = range x {  // set i, x[2] = 0, x[0]
+	break
+}
+// after this loop, i == 0 and x == []int{3, 5, 3}
 </pre>
 
 <p>
@@ -3902,7 +3972,7 @@ is assigned to a variable of interface type, the constant is <a href="#Conversio
 to type <code>bool</code>, <code>rune</code>, <code>int</code>, <code>float64</code>,
 <code>complex128</code> or <code>string</code>
 respectively, depending on whether the value is a
-boolean, character, integer, floating-point, complex, or string constant.
+boolean, rune, integer, floating-point, complex, or string constant.
 </p>
 
 
@@ -5441,7 +5511,6 @@ uintptr(unsafe.Pointer(&amp;x)) % unsafe.Alignof(x) == 0
 Calls to <code>Alignof</code>, <code>Offsetof</code>, and
 <code>Sizeof</code> are compile-time constant expressions of type <code>uintptr</code>.
 </p>
-<p>
 
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
 

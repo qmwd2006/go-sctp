@@ -127,8 +127,7 @@ var powersOfTen = [...]extFloat{
 // floatBits returns the bits of the float64 that best approximates
 // the extFloat passed as receiver. Overflow is set to true if
 // the resulting float64 is ±Inf.
-func (f *extFloat) floatBits() (bits uint64, overflow bool) {
-	flt := &float64info
+func (f *extFloat) floatBits(flt *floatInfo) (bits uint64, overflow bool) {
 	f.Normalize()
 
 	exp := f.exp + 63
@@ -140,7 +139,7 @@ func (f *extFloat) floatBits() (bits uint64, overflow bool) {
 		exp += n
 	}
 
-	// Extract 1+flt.mantbits bits.
+	// Extract 1+flt.mantbits bits from the 64-bit mantissa.
 	mant := f.mant >> (63 - flt.mantbits)
 	if f.mant&(1<<(62-flt.mantbits)) != 0 {
 		// Round up.
@@ -191,29 +190,24 @@ func (f *extFloat) Assign(x float64) {
 	f.exp -= 64
 }
 
-// AssignComputeBounds sets f to the value of x and returns
+// AssignComputeBounds sets f to the floating point value
+// defined by mant, exp and precision given by flt. It returns
 // lower, upper such that any number in the closed interval
-// [lower, upper] is converted back to x.
-func (f *extFloat) AssignComputeBounds(x float64) (lower, upper extFloat) {
-	// Special cases.
-	bits := math.Float64bits(x)
-	flt := &float64info
-	neg := bits>>(flt.expbits+flt.mantbits) != 0
-	expBiased := int(bits>>flt.mantbits) & (1<<flt.expbits - 1)
-	mant := bits & (uint64(1)<<flt.mantbits - 1)
-
-	if expBiased == 0 {
-		// denormalized.
-		f.mant = mant
-		f.exp = 1 + flt.bias - int(flt.mantbits)
-	} else {
-		f.mant = mant | 1<<flt.mantbits
-		f.exp = expBiased + flt.bias - int(flt.mantbits)
-	}
+// [lower, upper] is converted back to the same floating point number.
+func (f *extFloat) AssignComputeBounds(mant uint64, exp int, neg bool, flt *floatInfo) (lower, upper extFloat) {
+	f.mant = mant
+	f.exp = exp - int(flt.mantbits)
 	f.neg = neg
+	if f.exp <= 0 && mant == (mant>>uint(-f.exp))<<uint(-f.exp) {
+		// An exact integer
+		f.mant >>= uint(-f.exp)
+		f.exp = 0
+		return *f, *f
+	}
+	expBiased := exp - flt.bias
 
 	upper = extFloat{mant: 2*f.mant + 1, exp: f.exp - 1, neg: f.neg}
-	if mant != 0 || expBiased == 1 {
+	if mant != 1<<flt.mantbits || expBiased == 1 {
 		lower = extFloat{mant: 2*f.mant - 1, exp: f.exp - 1, neg: f.neg}
 	} else {
 		lower = extFloat{mant: 4*f.mant - 1, exp: f.exp - 2, neg: f.neg}
@@ -223,20 +217,38 @@ func (f *extFloat) AssignComputeBounds(x float64) (lower, upper extFloat) {
 
 // Normalize normalizes f so that the highest bit of the mantissa is
 // set, and returns the number by which the mantissa was left-shifted.
-func (f *extFloat) Normalize() uint {
-	if f.mant == 0 {
+func (f *extFloat) Normalize() (shift uint) {
+	mant, exp := f.mant, f.exp
+	if mant == 0 {
 		return 0
 	}
-	exp_before := f.exp
-	for f.mant < (1 << 55) {
-		f.mant <<= 8
-		f.exp -= 8
+	if mant>>(64-32) == 0 {
+		mant <<= 32
+		exp -= 32
 	}
-	for f.mant < (1 << 63) {
-		f.mant <<= 1
-		f.exp -= 1
+	if mant>>(64-16) == 0 {
+		mant <<= 16
+		exp -= 16
 	}
-	return uint(exp_before - f.exp)
+	if mant>>(64-8) == 0 {
+		mant <<= 8
+		exp -= 8
+	}
+	if mant>>(64-4) == 0 {
+		mant <<= 4
+		exp -= 4
+	}
+	if mant>>(64-2) == 0 {
+		mant <<= 2
+		exp -= 2
+	}
+	if mant>>(64-1) == 0 {
+		mant <<= 1
+		exp -= 1
+	}
+	shift = uint(f.exp - exp)
+	f.mant, f.exp = mant, exp
+	return
 }
 
 // Multiply sets f to the product f*g: the result is correctly rounded,
@@ -264,24 +276,22 @@ var uint64pow10 = [...]uint64{
 	1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
 }
 
-// AssignDecimal sets f to an approximate value of the decimal d. It
+// AssignDecimal sets f to an approximate value mantissa*10^exp. It
 // returns true if the value represented by f is guaranteed to be the
-// best approximation of d after being rounded to a float64. 
-func (f *extFloat) AssignDecimal(d *decimal) (ok bool) {
+// best approximation of d after being rounded to a float64 or
+// float32 depending on flt.
+func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc bool, flt *floatInfo) (ok bool) {
 	const uint64digits = 19
 	const errorscale = 8
-	mant10, digits := d.atou64()
-	exp10 := d.dp - digits
 	errors := 0 // An upper bound for error, computed in errorscale*ulp.
-
-	if digits < d.nd {
+	if trunc {
 		// the decimal number was truncated.
 		errors += errorscale / 2
 	}
 
-	f.mant = mant10
+	f.mant = mantissa
 	f.exp = 0
-	f.neg = d.neg
+	f.neg = neg
 
 	// Multiply by powers of ten.
 	i := (exp10 - firstPowerOfTen) / stepPowerOfTen
@@ -291,9 +301,9 @@ func (f *extFloat) AssignDecimal(d *decimal) (ok bool) {
 	adjExp := (exp10 - firstPowerOfTen) % stepPowerOfTen
 
 	// We multiply by exp%step
-	if digits+adjExp <= uint64digits {
-		// We can multiply the mantissa
-		f.mant *= uint64(float64pow10[adjExp])
+	if adjExp < uint64digits && mantissa < uint64pow10[uint64digits-adjExp] {
+		// We can multiply the mantissa exactly.
+		f.mant *= uint64pow10[adjExp]
 		f.Normalize()
 	} else {
 		f.Normalize()
@@ -318,10 +328,10 @@ func (f *extFloat) AssignDecimal(d *decimal) (ok bool) {
 	// The 64 bits mantissa is 1 + 52 bits for float64 + 11 extra bits.
 	//
 	// In many cases the approximation will be good enough.
-	const denormalExp = -1023 - 63
-	flt := &float64info
+	denormalExp := flt.bias - 63
 	var extrabits uint
 	if f.exp <= denormalExp {
+		// f.mant * 2^f.exp is smaller than 2^(flt.bias+1).
 		extrabits = uint(63 - flt.mantbits + 1 + uint(denormalExp-f.exp))
 	} else {
 		extrabits = uint(63 - flt.mantbits)
@@ -386,12 +396,37 @@ func frexp10Many(expMin, expMax int, a, b, c *extFloat) (exp10 int) {
 // which belongs to the open interval (lower, upper), where f is supposed
 // to lie. It returns false whenever the result is unsure. The implementation
 // uses the Grisu3 algorithm.
-func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
+func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool {
 	if f.mant == 0 {
 		d.d[0] = '0'
 		d.nd = 1
 		d.dp = 0
 		d.neg = f.neg
+	}
+	if f.exp == 0 && *lower == *f && *lower == *upper {
+		// an exact integer.
+		var buf [24]byte
+		n := len(buf) - 1
+		for v := f.mant; v > 0; {
+			v1 := v / 10
+			v -= 10 * v1
+			buf[n] = byte(v + '0')
+			n--
+			v = v1
+		}
+		nd := len(buf) - n - 1
+		for i := 0; i < nd; i++ {
+			d.d[i] = buf[n+1+i]
+		}
+		d.nd, d.dp = nd, nd
+		for d.nd > 0 && d.d[d.nd-1] == '0' {
+			d.nd--
+		}
+		if d.nd == 0 {
+			d.dp = 0
+		}
+		d.neg = f.neg
+		return true
 	}
 	const minExp = -60
 	const maxExp = -32
@@ -475,7 +510,7 @@ func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
 // d = x-targetDiff*ε, without becoming smaller than x-maxDiff*ε.
 // It assumes that a decimal digit is worth ulpDecimal*ε, and that
 // all data is known with a error estimate of ulpBinary*ε.
-func adjustLastDigit(d *decimal, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
+func adjustLastDigit(d *decimalSlice, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
 	if ulpDecimal < 2*ulpBinary {
 		// Approximation is too wide.
 		return false

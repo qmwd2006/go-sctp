@@ -327,6 +327,8 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
 		return reflect.ValueOf(word.True)
 	case *parse.DotNode:
 		return dot
+	case *parse.NilNode:
+		s.errorf("nil is not a command")
 	case *parse.NumberNode:
 		return s.idealConstant(word)
 	case *parse.StringNode:
@@ -414,23 +416,28 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
 		return s.evalCall(dot, method, fieldName, args, final)
 	}
 	hasArgs := len(args) > 1 || final.IsValid()
-	// It's not a method; is it a field of a struct?
+	// It's not a method; must be a field of a struct or an element of a map. The receiver must not be nil.
 	receiver, isNil := indirect(receiver)
-	if receiver.Kind() == reflect.Struct {
+	if isNil {
+		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+	}
+	switch receiver.Kind() {
+	case reflect.Struct:
 		tField, ok := receiver.Type().FieldByName(fieldName)
 		if ok {
 			field := receiver.FieldByIndex(tField.Index)
-			if tField.PkgPath == "" { // field is exported
-				// If it's a function, we must call it.
-				if hasArgs {
-					s.errorf("%s has arguments but cannot be invoked as function", fieldName)
-				}
-				return field
+			if tField.PkgPath != "" { // field is unexported
+				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
 			}
+			// If it's a function, we must call it.
+			if hasArgs {
+				s.errorf("%s has arguments but cannot be invoked as function", fieldName)
+			}
+			return field
 		}
-	}
-	// If it's a map, attempt to use the field name as a key.
-	if receiver.Kind() == reflect.Map {
+		s.errorf("%s is not a field of struct type %s", fieldName, typ)
+	case reflect.Map:
+		// If it's a map, attempt to use the field name as a key.
 		nameVal := reflect.ValueOf(fieldName)
 		if nameVal.Type().AssignableTo(receiver.Type().Key()) {
 			if hasArgs {
@@ -438,9 +445,6 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
 			}
 			return receiver.MapIndex(nameVal)
 		}
-	}
-	if isNil {
-		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
 	}
 	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
 	panic("not reached")
@@ -505,19 +509,32 @@ func (s *state) evalCall(dot, fun reflect.Value, name string, args []parse.Node,
 	return result[0]
 }
 
+// canBeNil reports whether an untyped nil can be assigned to the type. See reflect.Zero.
+func canBeNil(typ reflect.Type) bool {
+	switch typ.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return true
+	}
+	return false
+}
+
 // validateType guarantees that the value is valid and assignable to the type.
 func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Value {
 	if !value.IsValid() {
-		switch typ.Kind() {
-		case reflect.Interface, reflect.Ptr, reflect.Chan, reflect.Map, reflect.Slice, reflect.Func:
+		if canBeNil(typ) {
 			// An untyped nil interface{}. Accept as a proper nil value.
-			// TODO: Can we delete the other types in this list? Should we?
-			value = reflect.Zero(typ)
-		default:
-			s.errorf("invalid value; expected %s", typ)
+			return reflect.Zero(typ)
 		}
+		s.errorf("invalid value; expected %s", typ)
 	}
 	if !value.Type().AssignableTo(typ) {
+		if value.Kind() == reflect.Interface && !value.IsNil() {
+			value = value.Elem()
+			if value.Type().AssignableTo(typ) {
+				return value
+			}
+			// fallthrough
+		}
 		// Does one dereference or indirection work? We could do more, as we
 		// do with method receivers, but that gets messy and method receivers
 		// are much more constrained, so it makes more sense there than here.
@@ -538,10 +555,17 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
 	switch arg := n.(type) {
 	case *parse.DotNode:
 		return s.validateType(dot, typ)
+	case *parse.NilNode:
+		if canBeNil(typ) {
+			return reflect.Zero(typ)
+		}
+		s.errorf("cannot assign nil to %s", typ)
 	case *parse.FieldNode:
 		return s.validateType(s.evalFieldNode(dot, arg, []parse.Node{n}, zero), typ)
 	case *parse.VariableNode:
 		return s.validateType(s.evalVariableNode(dot, arg, nil, zero), typ)
+	case *parse.PipeNode:
+		return s.validateType(s.evalPipeline(dot, arg), typ)
 	}
 	switch typ.Kind() {
 	case reflect.Bool:
@@ -635,12 +659,17 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
 		return s.evalFieldNode(dot, n, nil, zero)
 	case *parse.IdentifierNode:
 		return s.evalFunction(dot, n.Ident, nil, zero)
+	case *parse.NilNode:
+		// NilNode is handled in evalArg, the only place that calls here.
+		s.errorf("evalEmptyInterface: nil (can't happen)")
 	case *parse.NumberNode:
 		return s.idealConstant(n)
 	case *parse.StringNode:
 		return reflect.ValueOf(n.Text)
 	case *parse.VariableNode:
 		return s.evalVariableNode(dot, n, nil, zero)
+	case *parse.PipeNode:
+		return s.evalPipeline(dot, n)
 	}
 	s.errorf("can't handle assignment of %s to empty interface argument", n)
 	panic("not reached")

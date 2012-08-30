@@ -43,13 +43,16 @@ Alexander Orlov <alexander.orlov@loxal.net>
 Alexander Reece <awreece@gmail.com>
 Alexandru Moșoi <brtzsnr@gmail.com>
 Alexey Borzenkov <snaury@gmail.com>
+Amir Mohammad Saied <amir@gluegadget.com>
 Amrut Joshi <amrut.joshi@gmail.com>
 Andrea Spadaccini <spadaccio@google.com>
 Andrei Vieru <euvieru@gmail.com>
 Andrew Balholm <andybalholm@gmail.com>
 Andrew Gerrand <adg@golang.org>
+Andrew Lutomirski <andy@luto.us>
 Andrew Pritchard <awpritchard@gmail.com>
 Andrew Skiba <skibaa@gmail.com>
+Andrew Wilkins <axwalk@gmail.com>
 Andrey Mirtchovski <mirtchovski@gmail.com>
 Andy Davis <andy@bigandian.com>
 Anh Hai Trinh <anh.hai.trinh@gmail.com>
@@ -64,16 +67,20 @@ Ben Eitzen <eitzenb@golang.org>
 Ben Fried <ben.fried@gmail.com>
 Ben Lynn <benlynn@gmail.com>
 Ben Olive <sionide21@gmail.com>
+Benjamin Black <b@b3k.us>
 Benny Siegert <bsiegert@gmail.com>
 Berengar Lehr <Berengar.Lehr@gmx.de>
 Bill Neubauer <wcn@golang.org> <wcn@google.com>
+Bill Thiede <couchmoney@gmail.com>
 Bjorn Tillenius <bjorn@tillenius.me>
 Bjorn Tipling <bjorn.tipling@gmail.com>
 Blake Mizerany <blake.mizerany@gmail.com>
 Bobby Powers <bobbypowers@gmail.com>
 Brad Fitzpatrick <bradfitz@golang.org> <bradfitz@gmail.com>
+Brian Dellisanti <briandellisanti@gmail.com>
 Brendan O'Dea <bod@golang.org>
 Caine Tighe <arctanofyourface@gmail.com>
+Carlos Castillo <cookieo9@gmail.com>
 Cary Hull <chull@google.com>
 Charles L. Dorian <cldorian@gmail.com>
 Chris Dollin <ehog.hedge@gmail.com>
@@ -82,9 +89,11 @@ Chris Hundt <hundt@google.com>
 Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
 Chris Lennert <calennert@gmail.com>
 Christian Himpel <chressie@googlemail.com> <chressie@gmail.com>
+Christine Hansmann <chhansmann@gmail.com>
 Christoph Hack <christoph@tux21b.org>
 Christopher Nielsen <m4dh4tt3r@gmail.com>
 Christopher Redden <christopher.redden@gmail.com>
+Christopher Swenson <cswenson@google.com>
 Christopher Wedgwood <cw@f00f.org>
 Clement Skau <clementskau@gmail.com>
 Colby Ranger <cranger@google.com>
@@ -94,9 +103,11 @@ Damian Gryski <dgryski@gmail.com>
 Dan Sinclair <dan.sinclair@gmail.com>
 Daniel Fleischman <danielfleischman@gmail.com>
 Daniel Krech <eikeon@eikeon.com>
+Daniel Morsing <daniel.morsing@gmail.com>
 Daniel Nadasi <dnadasi@google.com>
 Daniel Theophanes <kardianos@gmail.com>
 Darren Elwood <darren@textnode.com>
+Dave Borowitz <dborowitz@google.com>
 Dave Cheney <dave@cheney.net>
 Dave Grijalva <dgrijalva@ngmoco.com>
 David Anderson <danderson@google.com>
@@ -134,6 +145,7 @@ Graham Miller <graham.miller@gmail.com>
 Gustav Paul <gustav.paul@gmail.com>
 Gustavo Niemeyer <gustavo@niemeyer.net> <n13m3y3r@gmail.com>
 Gwenael Treguier <gwenn.kahz@gmail.com>
+Han-Wen Nienhuys <hanwen@google.com>
 Harley Laue <losinggeneration@gmail.com>
 Hector Chu <hectorchu@gmail.com>
 Hong Ruiqi <hongruiqi@gmail.com>
@@ -145,6 +157,7 @@ Ivan Krasin <krasin@golang.org>
 Jacob Baskin <jbaskin@google.com>
 James Aguilar <jaguilar@google.com>
 James Fysh <james.fysh@gmail.com>
+James Gray <james@james4k.com>
 James Meneghello <rawrz0r@gmail.com>
 James P. Cooper <jamespcooper@gmail.com>
 James Toy <nil@opensesame.st>
@@ -153,12 +166,15 @@ Jamie Gennis <jgennis@google.com> <jgennis@gmail.com>
 Jan H. Hosang <jan.hosang@gmail.com>
 Jan Mercl <befelemepeseveze@gmail.com>
 Jan Newmarch <jan.newmarch@gmail.com>
+Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
 Jani Monoses <jani.monoses@ubuntu.com> <jani.monoses@gmail.com>
 Jaroslavas Počepko <jp@webmaster.ms>
+Jean-Marc Eurin <jmeurin@google.com>
 Jeff Hodges <jeff@somethingsimilar.com>
 Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
 Jeremy Jackins <jeremyjackins@gmail.com>
 Jim McGrath <jimmc2@gmail.com>
+Joakim Sernbrant <serbaut@gmail.com>
 Joe Poirier <jdpoirier@gmail.com>
 Joel Sing <jsing@google.com>
 Johan Euphrosine <proppy@google.com>
@@ -166,6 +182,7 @@ John Asmuth <jasmuth@gmail.com>
 John Beisley <huin@google.com>
 John DeNero <denero@google.com>
 Jonathan Allie <jonallie@google.com>
+Jonathan Gold <jgold.bg@gmail.com>
 Jonathan Mark <jhmark@xenops.com> <jhmark000@gmail.com>
 Jonathan Pittman <jmpittman@google.com> <jonathan.mark.pittman@gmail.com>
 Jonathan Wills <runningwild@gmail.com>
@@ -175,6 +192,7 @@ Jose Luis Vázquez González <josvazg@gmail.com>
 Josh Goebel <dreamer3@gmail.com>
 Jukka-Pekka Kekkonen <karatepekka@gmail.com>
 Julian Phillips <julian@quantumfyre.co.uk>
+Julien Schmidt <google@julienschmidt.com>
 Kai Backman <kaib@golang.org>
 Kei Son <hey.calmdown@gmail.com>
 Keith Rarick <kr@xph.us>
@@ -185,6 +203,7 @@ Kevin Ballard <kevin@sb.org>
 Kirklin McDonald <kirklin.mcdonald@gmail.com>
 Kyle Consalus <consalus@gmail.com>
 Kyle Lemons <kyle@kylelemons.net> <kevlar@google.com>
+L Campbell <unpantsu@gmail.com>
 Lai Jiangshan <eag0628@gmail.com>
 Larry Hosken <lahosken@golang.org>
 Lorenzo Stoakes <lstoakes@gmail.com>
@@ -196,19 +215,24 @@ Luuk van Dijk <lvd@golang.org> <lvd@google.com>
 Marcel van Lohuizen <mpvl@golang.org>
 Mark Zavislak <zavislak@google.com>
 Markus Duft <markus.duft@salomon.at>
+Markus Sonderegger <marraison@gmail.com>
 Martin Neubauer <m.ne@gmx.net>
 Mateusz Czapliński <czapkofan@gmail.com>
 Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+Mats Lidell <mats.lidell@cag.se> <mats.lidell@gmail.com>
 Matt Jones <mrjones@google.com>
+Matt Jibson <matt.jibson@gmail.com>
 Matthew Horsnell <matthew.horsnell@gmail.com>
 Maxim Pimenov <mpimenov@google.com>
 Maxim Ushakov <ushakov@google.com>
 Micah Stetson <micah.stetson@gmail.com>
 Michael Chaten <mchaten@gmail.com>
 Michael Elkins <michael.elkins@gmail.com>
+Michael Gehring <mg@ebfe.org>
 Michael Hoisie <hoisie@gmail.com>
 Michael Lewis <mikelikespie@gmail.com>
 Michael Shields <mshields@google.com>
+Michael Stapelberg <michael@stapelberg.de> <mstplbrg@googlemail.com>
 Michael T. Jones <mtj@google.com> <michael.jones@gmail.com>
 Michał Derkacz <ziutek@lnet.pl>
 Miek Gieben <miek@miek.nl> <remigius.gieben@gmail.com>
@@ -229,13 +253,16 @@ Olivier Duperray <duperray.olivier@gmail.com>
 Padraig Kitterick <padraigkitterick@gmail.com>
 Paolo Giarrusso <p.giarrusso@gmail.com>
 Pascal S. de Kloe <pascal@quies.net>
+Patrick Crosby <patrick@stathat.com>
 Patrick Gavlin <pgavlin@gmail.com>
 Patrick Mylund Nielsen <patrick@patrickmn.com>
 Paul Borman <borman@google.com>
 Paul Lalonde <paul.a.lalonde@gmail.com>
 Paul Sbarra <Sbarra.Paul@gmail.com>
 Petar Maymounkov <petarm@gmail.com>
+Peter Armitage <peter.armitage@gmail.com>
 Peter Froehlich <peter.hans.froehlich@gmail.com>
+Peter Kleiweg <pkleiweg@xs4all.nl>
 Peter McKenzie <petermck@google.com>
 Peter Mundy <go.peter.90@gmail.com>
 Péter Szabó <pts@google.com>
@@ -257,6 +284,7 @@ Roger Peppe <rogpeppe@gmail.com>
 Ron Minnich <rminnich@gmail.com>
 Ross Light <rlight2@gmail.com>
 Russ Cox <rsc@golang.org>
+Ryan Barrett <ryanb@google.com>
 Ryan Hitchman <hitchmanr@gmail.com>
 Sam Thorogood <thorogood@google.com> <sam.thorogood@gmail.com>
 Sameer Ajmani <sameer@golang.org> <ajmani@gmail.com>
@@ -279,7 +307,9 @@ Sven Almgren <sven@tras.se>
 Szabolcs Nagy <nsz@port70.net>
 Tarmigan Casebolt <tarmigan@gmail.com>
 Taru Karttunen <taruti@taruti.net>
+Thomas Alan Copeland <talan.copeland@gmail.com>
 Timo Savola <timo.savola@gmail.com>
+Tobias Columbus <tobias.columbus@gmail.com> <tobias.columbus@googlemail.com>
 Tom Szymanski <tgs@google.com>
 Tor Andersson <tor.andersson@gmail.com>
 Trevor Strohman <trevor.strohman@gmail.com>

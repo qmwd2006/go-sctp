@@ -36,7 +36,8 @@
 enum
 {
 	thechar = '5',
-	PtrSize = 4
+	PtrSize = 4,
+	FuncAlign = 4  // single-instruction alignment
 };
 
 #ifndef	EXTERN
@@ -211,6 +212,7 @@ enum
 	C_NONE		= 0,
 	C_REG,
 	C_REGREG,
+	C_REGREG2,
 	C_SHIFT,
 	C_FREG,
 	C_PSR,
@@ -303,6 +305,7 @@ EXTERN	int	version;
 EXTERN	char	xcmp[C_GOK+1][C_GOK+1];
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;
+EXTERN	int	tlsoffset;
 EXTERN	int	armsize;
 
 extern	char*	anames[];
@@ -398,6 +401,9 @@ void	span(void);
 void	strnput(char*, int);
 int32	symaddr(Sym*);
 void	undef(void);
+void	vputb(uint64);
+void	vputl(uint64);
+void	wputb(uint16);
 void	wput(int32);
 void    wputl(ushort w);
 void	xdefine(char*, int, int32);
@@ -425,3 +431,9 @@ vlong		adduintxx(Sym *s, uint64 v, int wid);
 #define	VPUT(a)	abort()
 
 #endif
+
+/* Used by ../ld/dwarf.c */
+enum
+{
+	DWARFREGSP = 13
+};

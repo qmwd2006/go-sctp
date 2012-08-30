@@ -23,6 +23,16 @@ func (e ErrorString) Error() string { return string(e) }
 // NewError converts s to an ErrorString, which satisfies the Error interface.
 func NewError(s string) error { return ErrorString(s) }
 
+// A Note is a string describing a process note.
+// It implements the os.Signal interface.
+type Note string
+
+func (n Note) Signal() {}
+
+func (n Note) String() string {
+	return string(n)
+}
+
 var (
 	Stdin  = 0
 	Stdout = 1
@@ -69,23 +79,10 @@ func errstr() string {
 
 func Getpagesize() int { return 4096 }
 
-//sys	exits(msg *byte)
-func Exits(msg *string) {
-	if msg == nil {
-		exits(nil)
-	}
+// Implemented in assembly to import from runtime.
+func exit(int)
 
-	exits(StringBytePtr(*msg))
-}
-
-func Exit(code int) {
-	if code == 0 {
-		Exits(nil)
-	}
-
-	msg := itoa(code)
-	Exits(&msg)
-}
+func Exit(code int) { exit(code) }
 
 func readnum(path string) (uint, error) {
 	var b [12]byte
@@ -240,16 +237,24 @@ func Await(w *Waitmsg) (err error) {
 }
 
 func Unmount(name, old string) (err error) {
-	oldp := uintptr(unsafe.Pointer(StringBytePtr(old)))
+	oldp, err := BytePtrFromString(old)
+	if err != nil {
+		return err
+	}
+	oldptr := uintptr(unsafe.Pointer(oldp))
 
 	var r0 uintptr
 	var e ErrorString
 
 	// bind(2) man page: If name is zero, everything bound or mounted upon old is unbound or unmounted.
 	if name == "" {
-		r0, _, e = Syscall(SYS_UNMOUNT, _zero, oldp, 0)
+		r0, _, e = Syscall(SYS_UNMOUNT, _zero, oldptr, 0)
 	} else {
-		r0, _, e = Syscall(SYS_UNMOUNT, uintptr(unsafe.Pointer(StringBytePtr(name))), oldp, 0)
+		namep, err := BytePtrFromString(name)
+		if err != nil {
+			return err
+		}
+		r0, _, e = Syscall(SYS_UNMOUNT, uintptr(unsafe.Pointer(namep)), oldptr, 0)
 	}
 
 	if int(r0) == -1 {
@@ -333,14 +338,6 @@ func Getuid() (uid int)   { return -1 }
 
 func Getgroups() (gids []int, err error) {
 	return make([]int, 0), nil
-}
-
-type Signal int
-
-func (s Signal) Signal() {}
-
-func (s Signal) String() string {
-	return ""
 }
 
 //sys	Dup(oldfd int, newfd int) (fd int, err error)

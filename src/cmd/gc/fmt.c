@@ -361,6 +361,8 @@ Vconv(Fmt *fp)
 
 	switch(v->ctype) {
 	case CTINT:
+		if((fp->flags & FmtSharp) || fmtmode == FExp)
+			return fmtprint(fp, "%#B", v->u.xval);
 		return fmtprint(fp, "%B", v->u.xval);
 	case CTRUNE:
 		x = mpgetfix(v->u.xval);
@@ -962,7 +964,6 @@ static int opprec[] = {
 	[OPAREN] = 8,
 	[OPRINTN] = 8,
 	[OPRINT] = 8,
-	[ORECV] = 8,
 	[ORUNESTR] = 8,
 	[OSTRARRAYBYTE] = 8,
 	[OSTRARRAYRUNE] = 8,
@@ -994,6 +995,7 @@ static int opprec[] = {
 	[OMINUS] = 7,
 	[OADDR] = 7,
 	[OIND] = 7,
+	[ORECV] = 7,
 
 	[OMUL] = 6,
 	[ODIV] = 6,
@@ -1152,7 +1154,9 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OCLOSURE:
 		if(fmtmode == FErr)
 			return fmtstrcpy(f, "func literal");
-		return fmtprint(f, "%T { %H }", n->type, n->nbody);
+		if(n->nbody)
+			return fmtprint(f, "%T { %H }", n->type, n->nbody);
+		return fmtprint(f, "%T { %H }", n->type, n->closure->nbody);
 
 	case OCOMPLIT:
 		if(fmtmode == FErr)

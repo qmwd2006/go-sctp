@@ -45,6 +45,7 @@ func appendslice(typ *byte, x any, y []any) any
 func appendstr(typ *byte, x []byte, y string) []byte
 
 func cmpstring(string, string) int
+func eqstring(string, string) bool
 func slicestring(string, int, int) string
 func slicestring1(string, int) string
 func intstring(int64) string
@@ -61,7 +62,7 @@ func slicestringcopy(to any, fr any) int
 func convI2E(elem any) (ret any)
 func convI2I(typ *byte, elem any) (ret any)
 func convT2E(typ *byte, elem any) (ret any)
-func convT2I(typ *byte, typ2 *byte, elem any) (ret any)
+func convT2I(typ *byte, typ2 *byte, cache **byte, elem any) (ret any)
 
 // interface type assertions  x.(T)
 func assertE2E(typ *byte, iface any) (ret any)
@@ -117,9 +118,6 @@ func block()
 
 func makeslice(typ *byte, nel int64, cap int64) (ary []any)
 func growslice(typ *byte, old []any, n int64) (ary []any)
-func sliceslice1(old []any, lb uint64, width uint64) (ary []any)
-func sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
-func slicearray(old *any, nel uint64, lb uint64, hb uint64, width uint64) (ary []any)
 
 func closure() // has args, but compiler fills in
 

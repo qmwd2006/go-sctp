@@ -10,7 +10,9 @@ typedef long long Time;
 
 #define nil ((void*)0)
 #define nelem(x) (sizeof(x)/sizeof((x)[0]))
+#ifndef PLAN9
 #define USED(x) ((void)(x))
+#endif
 
 // A Buf is a byte buffer, like Go's []byte.
 typedef struct Buf Buf;
@@ -106,6 +108,7 @@ void	xmain(int argc, char **argv);
 
 // portability layer (plan9.c, unix.c, windows.c)
 bool	contains(char *p, char *sep);
+void	errprintf(char*, ...);
 void	fatal(char *msg, ...);
 bool	hasprefix(char *p, char *prefix);
 bool	hassuffix(char *p, char *suffix);

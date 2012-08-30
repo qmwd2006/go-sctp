@@ -813,7 +813,7 @@ typecheckswitch(Node *n)
 {
 	int top, lno, ptr;
 	char *nilonly;
-	Type *t, *missing, *have;
+	Type *t, *badtype, *missing, *have;
 	NodeList *l, *ll;
 	Node *ncase, *nvar;
 	Node *def;
@@ -839,10 +839,14 @@ typecheckswitch(Node *n)
 		} else
 			t = types[TBOOL];
 		if(t) {
-			if(!okforeq[t->etype] || isfixedarray(t))
+			if(!okforeq[t->etype])
 				yyerror("cannot switch on %lN", n->ntest);
-			else if(t->etype == TARRAY)
+			else if(t->etype == TARRAY && !isfixedarray(t))
 				nilonly = "slice";
+			else if(t->etype == TARRAY && isfixedarray(t) && algtype1(t, nil) == ANOEQ)
+				yyerror("cannot switch on %lN", n->ntest);
+			else if(t->etype == TSTRUCT && algtype1(t, &badtype) == ANOEQ)
+				yyerror("cannot switch on %lN (struct containing %T cannot be compared)", n->ntest, badtype);
 			else if(t->etype == TFUNC)
 				nilonly = "func";
 			else if(t->etype == TMAP)
@@ -889,7 +893,7 @@ typecheckswitch(Node *n)
 						yyerror("%lN is not a type", ll->n);
 						// reset to original type
 						ll->n = n->ntest->right;
-					} else if(ll->n->type->etype != TINTER && !implements(ll->n->type, t, &missing, &have, &ptr)) {
+					} else if(ll->n->type->etype != TINTER && t->etype == TINTER && !implements(ll->n->type, t, &missing, &have, &ptr)) {
 						if(have && !missing->broke && !have->broke)
 							yyerror("impossible type switch case: %lN cannot have dynamic type %T"
 								" (wrong type for %S method)\n\thave %S%hT\n\twant %S%hT",

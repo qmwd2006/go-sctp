@@ -15,46 +15,28 @@ type Handle uintptr
 
 const InvalidHandle = ^Handle(0)
 
-/*
-
-small demo to detect version of windows you are running:
-
-package main
-
-import (
-	"syscall"
-)
-
-func abort(funcname string, err error) {
-	panic(funcname + " failed: " + err.Error())
-}
-
-func print_version(v uint32) {
-	major := byte(v)
-	minor := uint8(v >> 8)
-	build := uint16(v >> 16)
-	print("windows version ", major, ".", minor, " (Build ", build, ")\n")
-}
-
-func main() {
-	h, err := syscall.LoadLibrary("kernel32.dll")
+// StringToUTF16 is deprecated. Use UTF16FromString instead.
+// If s contains a NUL byte this function panics instead of
+// returning an error.
+func StringToUTF16(s string) []uint16 {
+	a, err := UTF16FromString(s)
 	if err != nil {
-		abort("LoadLibrary", err)
+		panic("syscall: string with NUL passed to StringToUTF16")
 	}
-	defer syscall.FreeLibrary(h)
-	proc, err := syscall.GetProcAddress(h, "GetVersion")
-	if err != nil {
-		abort("GetProcAddress", err)
-	}
-	r, _, _ := syscall.Syscall(uintptr(proc), 0, 0, 0, 0)
-	print_version(uint32(r))
+	return a
 }
 
-*/
-
-// StringToUTF16 returns the UTF-16 encoding of the UTF-8 string s,
-// with a terminating NUL added.
-func StringToUTF16(s string) []uint16 { return utf16.Encode([]rune(s + "\x00")) }
+// UTF16FromString returns the UTF-16 encoding of the UTF-8 string
+// s, with a terminating NUL added. If s contains a NUL byte at any
+// location, it returns (nil, EINVAL).
+func UTF16FromString(s string) ([]uint16, error) {
+	for i := 0; i < len(s); i++ {
+		if s[i] == 0 {
+			return nil, EINVAL
+		}
+	}
+	return utf16.Encode([]rune(s + "\x00")), nil
+}
 
 // UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,
 // with a terminating NUL removed.
@@ -68,9 +50,21 @@ func UTF16ToString(s []uint16) string {
 	return string(utf16.Decode(s))
 }
 
-// StringToUTF16Ptr returns pointer to the UTF-16 encoding of
-// the UTF-8 string s, with a terminating NUL added.
+// StringToUTF16Ptr is deprecated. Use UTF16PtrFromString instead.
+// If s contains a NUL byte this function panics instead of
+// returning an error.
 func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
+
+// UTF16PtrFromString returns pointer to the UTF-16 encoding of
+// the UTF-8 string s, with a terminating NUL added. If s
+// contains a NUL byte at any location, it returns (nil, EINVAL).
+func UTF16PtrFromString(s string) (*uint16, error) {
+	a, err := UTF16FromString(s)
+	if err != nil {
+		return nil, err
+	}
+	return &a[0], nil
+}
 
 func Getpagesize() int { return 4096 }
 
@@ -90,7 +84,9 @@ func (e Errno) Error() string {
 	b := make([]uint16, 300)
 	n, err := FormatMessage(flags, 0, uint32(e), langid(LANG_ENGLISH, SUBLANG_ENGLISH_US), b, nil)
 	if err != nil {
-		return "error " + itoa(int(e)) + " (FormatMessage failed with err=" + itoa(int(err.(Errno))) + ")"
+		// TODO(brainman): Call FormatMessage again asking for "native" error message.
+		// http://code.google.com/p/go/issues/detail?id=3376 must be resolved first.
+		return "winapi error #" + itoa(int(e))
 	}
 	// trim terminating \r and \n
 	for ; n > 0 && (b[n-1] == '\n' || b[n-1] == '\r'); n-- {
@@ -109,7 +105,7 @@ func (e Errno) Timeout() bool {
 // Converts a Go function to a function pointer conforming
 // to the stdcall calling convention.  This is useful when
 // interoperating with Windows code requiring callbacks.
-// Implemented in ../runtime/windows/syscall.goc
+// Implemented in ../runtime/syscall_windows.goc
 func NewCallback(fn interface{}) uintptr
 
 // windows api calls
@@ -127,8 +123,8 @@ func NewCallback(fn interface{}) uintptr
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
 //sys	CloseHandle(handle Handle) (err error)
 //sys	GetStdHandle(stdhandle int) (handle Handle, err error) [failretval==InvalidHandle]
-//sys	FindFirstFile(name *uint16, data *Win32finddata) (handle Handle, err error) [failretval==InvalidHandle] = FindFirstFileW
-//sys	FindNextFile(handle Handle, data *Win32finddata) (err error) = FindNextFileW
+//sys	findFirstFile1(name *uint16, data *win32finddata1) (handle Handle, err error) [failretval==InvalidHandle] = FindFirstFileW
+//sys	findNextFile1(handle Handle, data *win32finddata1) (err error) = FindNextFileW
 //sys	FindClose(handle Handle) (err error)
 //sys	GetFileInformationByHandle(handle Handle, data *ByHandleFileInformation) (err error)
 //sys	GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, err error) = GetCurrentDirectoryW
@@ -199,6 +195,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegQueryInfoKeyW
 //sys	RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegEnumKeyExW
 //sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) = advapi32.RegQueryValueExW
+//sys	getCurrentProcessId() (pid uint32) = kernel32.GetCurrentProcessId
 
 // syscall interface implementation for other packages
 
@@ -214,6 +211,10 @@ func makeInheritSa() *SecurityAttributes {
 func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	if len(path) == 0 {
 		return InvalidHandle, ERROR_FILE_NOT_FOUND
+	}
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return InvalidHandle, err
 	}
 	var access uint32
 	switch mode & (O_RDONLY | O_WRONLY | O_RDWR) {
@@ -249,7 +250,7 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	default:
 		createmode = OPEN_EXISTING
 	}
-	h, e := CreateFile(StringToUTF16Ptr(path), access, sharemode, sa, createmode, FILE_ATTRIBUTE_NORMAL, 0)
+	h, e := CreateFile(pathp, access, sharemode, sa, createmode, FILE_ATTRIBUTE_NORMAL, 0)
 	return h, e
 }
 
@@ -327,24 +328,46 @@ func Getwd() (wd string, err error) {
 }
 
 func Chdir(path string) (err error) {
-	return SetCurrentDirectory(&StringToUTF16(path)[0])
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return err
+	}
+	return SetCurrentDirectory(pathp)
 }
 
 func Mkdir(path string, mode uint32) (err error) {
-	return CreateDirectory(&StringToUTF16(path)[0], nil)
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return err
+	}
+	return CreateDirectory(pathp, nil)
 }
 
 func Rmdir(path string) (err error) {
-	return RemoveDirectory(&StringToUTF16(path)[0])
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return err
+	}
+	return RemoveDirectory(pathp)
 }
 
 func Unlink(path string) (err error) {
-	return DeleteFile(&StringToUTF16(path)[0])
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return err
+	}
+	return DeleteFile(pathp)
 }
 
 func Rename(oldpath, newpath string) (err error) {
-	from := &StringToUTF16(oldpath)[0]
-	to := &StringToUTF16(newpath)[0]
+	from, err := UTF16PtrFromString(oldpath)
+	if err != nil {
+		return err
+	}
+	to, err := UTF16PtrFromString(newpath)
+	if err != nil {
+		return err
+	}
 	return MoveFile(from, to)
 }
 
@@ -400,7 +423,11 @@ func Utimes(path string, tv []Timeval) (err error) {
 	if len(tv) != 2 {
 		return EINVAL
 	}
-	h, e := CreateFile(StringToUTF16Ptr(path),
+	pathp, e := UTF16PtrFromString(path)
+	if e != nil {
+		return e
+	}
+	h, e := CreateFile(pathp,
 		FILE_WRITE_ATTRIBUTES, FILE_SHARE_WRITE, nil,
 		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
 	if e != nil {
@@ -420,7 +447,10 @@ func Chmod(path string, mode uint32) (err error) {
 	if mode == 0 {
 		return EINVAL
 	}
-	p := StringToUTF16Ptr(path)
+	p, e := UTF16PtrFromString(path)
+	if e != nil {
+		return e
+	}
 	attrs, e := GetFileAttributes(p)
 	if e != nil {
 		return e
@@ -440,6 +470,7 @@ func Chmod(path string, mode uint32) (err error) {
 //sys	WSAIoctl(s Handle, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) [failretval==-1] = ws2_32.WSAIoctl
 //sys	socket(af int32, typ int32, protocol int32) (handle Handle, err error) [failretval==InvalidHandle] = ws2_32.socket
 //sys	Setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (err error) [failretval==-1] = ws2_32.setsockopt
+//sys	Getsockopt(s Handle, level int32, optname int32, optval *byte, optlen *int32) (err error) [failretval==-1] = ws2_32.getsockopt
 //sys	bind(s Handle, name uintptr, namelen int32) (err error) [failretval==-1] = ws2_32.bind
 //sys	connect(s Handle, name uintptr, namelen int32) (err error) [failretval==-1] = ws2_32.connect
 //sys	getsockname(s Handle, rsa *RawSockaddrAny, addrlen *int32) (err error) [failretval==-1] = ws2_32.getsockname
@@ -656,9 +687,21 @@ func Recvfrom(fd Handle, p []byte, flags int) (n int, from Sockaddr, err error) 
 func Sendto(fd Handle, p []byte, flags int, to Sockaddr) (err error)       { return EWINDOWS }
 func SetsockoptTimeval(fd Handle, level, opt int, tv *Timeval) (err error) { return EWINDOWS }
 
+// The Linger struct is wrong but we only noticed after Go 1.
+// sysLinger is the real system call structure.
+
+// BUG(brainman): The definition of Linger is not appropriate for direct use
+// with Setsockopt and Getsockopt.
+// Use SetsockoptLinger instead.
+
 type Linger struct {
 	Onoff  int32
 	Linger int32
+}
+
+type sysLinger struct {
+	Onoff  uint16
+	Linger uint16
 }
 
 type IPMreq struct {
@@ -671,8 +714,13 @@ type IPv6Mreq struct {
 	Interface uint32
 }
 
-func GetsockoptInt(fd Handle, level, opt int) (int, error)              { return -1, EWINDOWS }
-func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) { return EWINDOWS }
+func GetsockoptInt(fd Handle, level, opt int) (int, error) { return -1, EWINDOWS }
+
+func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) {
+	sys := sysLinger{Onoff: uint16(l.Onoff), Linger: uint16(l.Linger)}
+	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&sys)), int32(unsafe.Sizeof(sys)))
+}
+
 func SetsockoptInet4Addr(fd Handle, level, opt int, value [4]byte) (err error) {
 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&value[0])), 4)
 }
@@ -681,9 +729,35 @@ func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
 }
 func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) { return EWINDOWS }
 
-// TODO(brainman): fix all needed for os
+func Getpid() (pid int) { return int(getCurrentProcessId()) }
 
-func Getpid() (pid int)   { return -1 }
+func FindFirstFile(name *uint16, data *Win32finddata) (handle Handle, err error) {
+	// NOTE(rsc): The Win32finddata struct is wrong for the system call:
+	// the two paths are each one uint16 short. Use the correct struct,
+	// a win32finddata1, and then copy the results out.
+	// There is no loss of expressivity here, because the final
+	// uint16, if it is used, is supposed to be a NUL, and Go doesn't need that.
+	// For Go 1.1, we might avoid the allocation of win32finddata1 here
+	// by adding a final Bug [2]uint16 field to the struct and then
+	// adjusting the fields in the result directly.
+	var data1 win32finddata1
+	handle, err = findFirstFile1(name, &data1)
+	if err == nil {
+		copyFindData(data, &data1)
+	}
+	return
+}
+
+func FindNextFile(handle Handle, data *Win32finddata) (err error) {
+	var data1 win32finddata1
+	err = findNextFile1(handle, &data1)
+	if err == nil {
+		copyFindData(data, &data1)
+	}
+	return
+}
+
+// TODO(brainman): fix all needed for os
 func Getppid() (ppid int) { return -1 }
 
 func Fchdir(fd Handle) (err error)                        { return EWINDOWS }

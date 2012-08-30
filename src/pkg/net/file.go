@@ -17,50 +17,50 @@ func newFileFD(f *os.File) (*netFD, error) {
 		return nil, os.NewSyscallError("dup", err)
 	}
 
-	proto, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
+	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
 	if err != nil {
+		closesocket(fd)
 		return nil, os.NewSyscallError("getsockopt", err)
 	}
 
 	family := syscall.AF_UNSPEC
 	toAddr := sockaddrToTCP
-	sa, _ := syscall.Getsockname(fd)
-	switch sa.(type) {
+	lsa, _ := syscall.Getsockname(fd)
+	switch lsa.(type) {
 	default:
 		closesocket(fd)
 		return nil, syscall.EINVAL
 	case *syscall.SockaddrInet4:
 		family = syscall.AF_INET
-		if proto == syscall.SOCK_DGRAM {
+		if sotype == syscall.SOCK_DGRAM {
 			toAddr = sockaddrToUDP
-		} else if proto == syscall.SOCK_RAW {
+		} else if sotype == syscall.SOCK_RAW {
 			toAddr = sockaddrToIP
 		}
 	case *syscall.SockaddrInet6:
 		family = syscall.AF_INET6
-		if proto == syscall.SOCK_DGRAM {
+		if sotype == syscall.SOCK_DGRAM {
 			toAddr = sockaddrToUDP
-		} else if proto == syscall.SOCK_RAW {
+		} else if sotype == syscall.SOCK_RAW {
 			toAddr = sockaddrToIP
 		}
 	case *syscall.SockaddrUnix:
 		family = syscall.AF_UNIX
 		toAddr = sockaddrToUnix
-		if proto == syscall.SOCK_DGRAM {
+		if sotype == syscall.SOCK_DGRAM {
 			toAddr = sockaddrToUnixgram
-		} else if proto == syscall.SOCK_SEQPACKET {
+		} else if sotype == syscall.SOCK_SEQPACKET {
 			toAddr = sockaddrToUnixpacket
 		}
 	}
-	laddr := toAddr(sa)
-	sa, _ = syscall.Getpeername(fd)
-	raddr := toAddr(sa)
+	laddr := toAddr(lsa)
 
-	netfd, err := newFD(fd, family, proto, laddr.Network())
+	netfd, err := newFD(fd, family, sotype, laddr.Network())
 	if err != nil {
+		closesocket(fd)
 		return nil, err
 	}
-	netfd.setAddr(laddr, raddr)
+	netfd.setAddr(laddr, remoteSockname(netfd, toAddr))
 	return netfd, nil
 }
 
@@ -78,10 +78,10 @@ func FileConn(f *os.File) (c Conn, err error) {
 		return newTCPConn(fd), nil
 	case *UDPAddr:
 		return newUDPConn(fd), nil
-	case *UnixAddr:
-		return newUnixConn(fd), nil
 	case *IPAddr:
 		return newIPConn(fd), nil
+	case *UnixAddr:
+		return newUnixConn(fd), nil
 	}
 	fd.Close()
 	return nil, syscall.EINVAL
@@ -89,8 +89,8 @@ func FileConn(f *os.File) (c Conn, err error) {
 
 // FileListener returns a copy of the network listener corresponding
 // to the open file f.  It is the caller's responsibility to close l
-// when finished.  Closing c does not affect l, and closing l does not
-// affect c.
+// when finished.  Closing l does not affect f, and closing f does not
+// affect l.
 func FileListener(f *os.File) (l Listener, err error) {
 	fd, err := newFileFD(f)
 	if err != nil {

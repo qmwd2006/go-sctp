@@ -324,6 +324,16 @@ var parseTests = []ParseTest{
 	// Leading zeros in other places should not be taken as fractional seconds.
 	{"zero1", "2006.01.02.15.04.05.0", "2010.02.04.21.00.57.0", false, false, 1, 1},
 	{"zero2", "2006.01.02.15.04.05.00", "2010.02.04.21.00.57.01", false, false, 1, 2},
+
+	// Accept any number of fractional second digits (including none) for .999...
+	// In Go 1, .999... was completely ignored in the format, meaning the first two
+	// cases would succeed, but the next four would not. Go 1.1 accepts all six.
+	{"", "2006-01-02 15:04:05.9999 -0700 MST", "2010-02-04 21:00:57 -0800 PST", true, false, 1, 0},
+	{"", "2006-01-02 15:04:05.999999999 -0700 MST", "2010-02-04 21:00:57 -0800 PST", true, false, 1, 0},
+	{"", "2006-01-02 15:04:05.9999 -0700 MST", "2010-02-04 21:00:57.0123 -0800 PST", true, false, 1, 4},
+	{"", "2006-01-02 15:04:05.999999999 -0700 MST", "2010-02-04 21:00:57.0123 -0800 PST", true, false, 1, 4},
+	{"", "2006-01-02 15:04:05.9999 -0700 MST", "2010-02-04 21:00:57.012345678 -0800 PST", true, false, 1, 9},
+	{"", "2006-01-02 15:04:05.999999999 -0700 MST", "2010-02-04 21:00:57.012345678 -0800 PST", true, false, 1, 9},
 }
 
 func TestParse(t *testing.T) {
@@ -601,6 +611,103 @@ func TestISOWeek(t *testing.T) {
 	}
 }
 
+type YearDayTest struct {
+	year, month, day int
+	yday             int
+}
+
+// Test YearDay in several different scenarios
+// and corner cases
+var yearDayTests = []YearDayTest{
+	// Non-leap-year tests
+	{2007, 1, 1, 1},
+	{2007, 1, 15, 15},
+	{2007, 2, 1, 32},
+	{2007, 2, 15, 46},
+	{2007, 3, 1, 60},
+	{2007, 3, 15, 74},
+	{2007, 4, 1, 91},
+	{2007, 12, 31, 365},
+
+	// Leap-year tests
+	{2008, 1, 1, 1},
+	{2008, 1, 15, 15},
+	{2008, 2, 1, 32},
+	{2008, 2, 15, 46},
+	{2008, 3, 1, 61},
+	{2008, 3, 15, 75},
+	{2008, 4, 1, 92},
+	{2008, 12, 31, 366},
+
+	// Looks like leap-year (but isn't) tests
+	{1900, 1, 1, 1},
+	{1900, 1, 15, 15},
+	{1900, 2, 1, 32},
+	{1900, 2, 15, 46},
+	{1900, 3, 1, 60},
+	{1900, 3, 15, 74},
+	{1900, 4, 1, 91},
+	{1900, 12, 31, 365},
+
+	// Year one tests (non-leap)
+	{1, 1, 1, 1},
+	{1, 1, 15, 15},
+	{1, 2, 1, 32},
+	{1, 2, 15, 46},
+	{1, 3, 1, 60},
+	{1, 3, 15, 74},
+	{1, 4, 1, 91},
+	{1, 12, 31, 365},
+
+	// Year minus one tests (non-leap)
+	{-1, 1, 1, 1},
+	{-1, 1, 15, 15},
+	{-1, 2, 1, 32},
+	{-1, 2, 15, 46},
+	{-1, 3, 1, 60},
+	{-1, 3, 15, 74},
+	{-1, 4, 1, 91},
+	{-1, 12, 31, 365},
+
+	// 400 BC tests (leap-year)
+	{-400, 1, 1, 1},
+	{-400, 1, 15, 15},
+	{-400, 2, 1, 32},
+	{-400, 2, 15, 46},
+	{-400, 3, 1, 61},
+	{-400, 3, 15, 75},
+	{-400, 4, 1, 92},
+	{-400, 12, 31, 366},
+
+	// Special Cases
+
+	// Gregorian calendar change (no effect)
+	{1582, 10, 4, 277},
+	{1582, 10, 15, 288},
+}
+
+// Check to see if YearDay is location sensitive
+var yearDayLocations = []*Location{
+	FixedZone("UTC-8", -8*60*60),
+	FixedZone("UTC-4", -4*60*60),
+	UTC,
+	FixedZone("UTC+4", 4*60*60),
+	FixedZone("UTC+8", 8*60*60),
+}
+
+func TestYearDay(t *testing.T) {
+	for _, loc := range yearDayLocations {
+		for _, ydt := range yearDayTests {
+			dt := Date(ydt.year, Month(ydt.month), ydt.day, 0, 0, 0, 0, loc)
+			yday := dt.YearDay()
+			if yday != ydt.yday {
+				t.Errorf("got %d, expected %d for %d-%02d-%02d in %v",
+					yday, ydt.yday, ydt.year, ydt.month, ydt.day, loc)
+			}
+		}
+	}
+}
+
 var durationTests = []struct {
 	str string
 	d   Duration
@@ -805,7 +912,7 @@ var jsonTests = []struct {
 	time Time
 	json string
 }{
-	{Date(9999, 4, 12, 23, 20, 50, .52*1e9, UTC), `"9999-04-12T23:20:50.52Z"`},
+	{Date(9999, 4, 12, 23, 20, 50, 520*1e6, UTC), `"9999-04-12T23:20:50.52Z"`},
 	{Date(1996, 12, 19, 16, 39, 57, 0, Local), `"1996-12-19T16:39:57-08:00"`},
 	{Date(0, 1, 1, 0, 0, 0, 1, FixedZone("", 1*60)), `"0000-01-01T00:00:00.000000001+00:01"`},
 }
@@ -935,9 +1042,18 @@ func BenchmarkNow(b *testing.B) {
 }
 
 func BenchmarkFormat(b *testing.B) {
-	time := Unix(1265346057, 0)
+	t := Unix(1265346057, 0)
 	for i := 0; i < b.N; i++ {
-		time.Format("Mon Jan  2 15:04:05 2006")
+		t.Format("Mon Jan  2 15:04:05 2006")
+	}
+}
+
+func BenchmarkFormatNow(b *testing.B) {
+	// Like BenchmarkFormat, but easier, because the time zone
+	// lookup cache is optimized for the present.
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		t.Format("Mon Jan  2 15:04:05 2006")
 	}
 }
 

@@ -25,7 +25,6 @@ type file struct {
 	fd      syscall.Handle
 	name    string
 	dirinfo *dirInfo   // nil unless directory being read
-	nepipe  int        // number of consecutive EPIPE in Write
 	l       sync.Mutex // used to implement windows pread/pwrite
 }
 
@@ -55,6 +54,9 @@ type dirInfo struct {
 	path     string
 }
 
+func epipecheck(file *File, e error) {
+}
+
 const DevNull = "NUL"
 
 func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
@@ -75,8 +77,12 @@ func openFile(name string, flag int, perm FileMode) (file *File, err error) {
 }
 
 func openDir(name string) (file *File, err error) {
+	maskp, e := syscall.UTF16PtrFromString(name + `\*`)
+	if e != nil {
+		return nil, &PathError{"open", name, e}
+	}
 	d := new(dirInfo)
-	r, e := syscall.FindFirstFile(syscall.StringToUTF16Ptr(name+`\*`), &d.data)
+	r, e := syscall.FindFirstFile(maskp, &d.data)
 	if e != nil {
 		return nil, &PathError{"open", name, e}
 	}
@@ -282,11 +288,14 @@ func Truncate(name string, size int64) error {
 // Remove removes the named file or directory.
 // If there is an error, it will be of type *PathError.
 func Remove(name string) error {
-	p := &syscall.StringToUTF16(name)[0]
+	p, e := syscall.UTF16PtrFromString(name)
+	if e != nil {
+		return &PathError{"remove", name, e}
+	}
 
 	// Go file interface forces us to know whether
 	// name is a file or directory. Try both.
-	e := syscall.DeleteFile(p)
+	e = syscall.DeleteFile(p)
 	if e == nil {
 		return nil
 	}

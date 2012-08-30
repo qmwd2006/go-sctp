@@ -141,15 +141,24 @@ runtime·catstring(String s1, String s2)
 static String
 concatstring(int32 n, String *s)
 {
-	int32 i, l;
+	int32 i, l, count;
 	String out;
 
 	l = 0;
+	count = 0;
 	for(i=0; i<n; i++) {
 		if(l + s[i].len < l)
 			runtime·throw("string concatenation too long");
 		l += s[i].len;
+		if(s[i].len > 0) {
+			count++;
+			out = s[i];
+		}
 	}
+	if(count == 0)
+		return runtime·emptystring;
+	if(count == 1) // zero or one non-empty string in concatenation
+		return out;
 	
 	out = gostringsize(l);
 	l = 0;
@@ -195,6 +204,26 @@ func cmpstring(s1 String, s2 String) (v int32) {
 	v = cmpstring(s1, s2);
 }
 
+func eqstring(s1 String, s2 String) (v bool) {
+	uint32 i, l;
+
+	if(s1.len != s2.len) {
+		v = false;
+		return;
+	}
+	if(s1.str == s2.str) {
+		v = true;
+		return;
+	}
+	l = s1.len;
+	for(i=0; i<l; i++)
+		if(s1.str[i] != s2.str[i]) {
+			v = false;
+			return;
+		}
+	v = true;
+}
+
 int32
 runtime·strcmp(byte *s1, byte *s2)
 {
@@ -233,31 +262,6 @@ runtime·strstr(byte *s1, byte *s2)
 		}
 	}
 	return nil;
-}
-
-func slicestring(si String, lindex int32, hindex int32) (so String) {
-	int32 l;
-
-	if(lindex < 0 || lindex > si.len ||
-	   hindex < lindex || hindex > si.len) {
-	   	runtime·panicslice();
-	}
-
-	l = hindex-lindex;
-	so.str = si.str + lindex;
-	so.len = l;
-}
-
-func slicestring1(si String, lindex int32) (so String) {
-	int32 l;
-
-	if(lindex < 0 || lindex > si.len) {
-		runtime·panicslice();
-	}
-
-	l = si.len-lindex;
-	so.str = si.str + lindex;
-	so.len = l;
 }
 
 func intstring(v int64) (s String) {

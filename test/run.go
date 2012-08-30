@@ -77,16 +77,23 @@ func main() {
 	if flag.NArg() > 0 {
 		for _, arg := range flag.Args() {
 			if arg == "-" || arg == "--" {
-				// Permit running either:
+				// Permit running:
 				// $ go run run.go - env.go
 				// $ go run run.go -- env.go
+				// $ go run run.go - ./fixedbugs
+				// $ go run run.go -- ./fixedbugs
 				continue
 			}
-			if !strings.HasSuffix(arg, ".go") {
-				log.Fatalf("can't yet deal with non-go file %q", arg)
+			if fi, err := os.Stat(arg); err == nil && fi.IsDir() {
+				for _, baseGoFile := range goFiles(arg) {
+					tests = append(tests, startTest(arg, baseGoFile))
+				}
+			} else if strings.HasSuffix(arg, ".go") {
+				dir, file := filepath.Split(arg)
+				tests = append(tests, startTest(dir, file))
+			} else {
+				log.Fatalf("can't yet deal with non-directory and non-go file %q", arg)
 			}
-			dir, file := filepath.Split(arg)
-			tests = append(tests, startTest(dir, file))
 		}
 	} else {
 		for _, dir := range dirs {
@@ -172,7 +179,7 @@ type test struct {
 	donec       chan bool // closed when done
 
 	src    string
-	action string // "compile", "build", "run", "errorcheck", "skip"
+	action string // "compile", "build", "run", "errorcheck", "skip", "runoutput", "compiledir"
 
 	tempDir string
 	err     error
@@ -216,6 +223,10 @@ func (t *test) goFileName() string {
 	return filepath.Join(t.dir, t.gofile)
 }
 
+func (t *test) goDirName() string {
+	return filepath.Join(t.dir, strings.Replace(t.gofile, ".go", ".dir", -1))
+}
+
 // run runs a test.
 func (t *test) run() {
 	defer close(t.donec)
@@ -251,7 +262,7 @@ func (t *test) run() {
 	case "cmpout":
 		action = "run" // the run case already looks for <dir>/<test>.out files
 		fallthrough
-	case "compile", "build", "run", "errorcheck":
+	case "compile", "compiledir", "build", "run", "errorcheck", "runoutput":
 		t.action = action
 	case "skip":
 		t.action = "skip"
@@ -301,6 +312,26 @@ func (t *test) run() {
 			t.err = fmt.Errorf("%s\n%s", err, out)
 		}
 
+	case "compiledir":
+		// Compile all files in the directory in lexicographic order.
+		longdir := filepath.Join(cwd, t.goDirName())
+		files, dirErr := ioutil.ReadDir(longdir)
+		if dirErr != nil {
+			t.err = dirErr
+			return
+		}
+		for _, gofile := range files {
+			if filepath.Ext(gofile.Name()) != ".go" {
+				continue
+			}
+			afile := strings.Replace(gofile.Name(), ".go", "."+letter, -1)
+			out, err := runcmd("go", "tool", gc, "-e", "-D.", "-I.", "-o", afile, filepath.Join(longdir, gofile.Name()))
+			if err != nil {
+				t.err = fmt.Errorf("%s\n%s", err, out)
+				break
+			}
+		}
+
 	case "build":
 		out, err := runcmd("go", "build", "-o", "a.exe", long)
 		if err != nil {
@@ -310,6 +341,26 @@ func (t *test) run() {
 	case "run":
 		useTmp = false
 		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
+		if err != nil {
+			t.err = fmt.Errorf("%s\n%s", err, out)
+		}
+		if string(out) != t.expectedOutput() {
+			t.err = fmt.Errorf("incorrect output\n%s", out)
+		}
+
+	case "runoutput":
+		useTmp = false
+		out, err := runcmd("go", "run", t.goFileName())
+		if err != nil {
+			t.err = fmt.Errorf("%s\n%s", err, out)
+		}
+		tfile := filepath.Join(t.tempDir, "tmp__.go")
+		err = ioutil.WriteFile(tfile, out, 0666)
+		if err != nil {
+			t.err = fmt.Errorf("write tempfile:%s", err)
+			return
+		}
+		out, err = runcmd("go", "run", tfile)
 		if err != nil {
 			t.err = fmt.Errorf("%s\n%s", err, out)
 		}
@@ -349,6 +400,9 @@ func (t *test) errorCheck(outStr string, full, short string) (err error) {
 	// 6g error messages continue onto additional lines with leading tabs.
 	// Split the output at the beginning of each line that doesn't begin with a tab.
 	for _, line := range strings.Split(outStr, "\n") {
+		if strings.HasSuffix(line, "\r") {	// remove '\r', output by compiler on windows
+			line = line[:len(line)-1]
+		}
 		if strings.HasPrefix(line, "\t") {
 			out[len(out)-1] += "\n" + line
 		} else {

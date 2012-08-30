@@ -14,6 +14,7 @@ import (
 	"go/printer"
 	"go/token"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -57,7 +58,13 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
 	fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int) { *dst = syscall.Errno(x) }\n")
 
-	for name, def := range typedef {
+	typedefNames := make([]string, 0, len(typedef))
+	for name := range typedef {
+		typedefNames = append(typedefNames, name)
+	}
+	sort.Strings(typedefNames)
+	for _, name := range typedefNames {
+		def := typedef[name]
 		fmt.Fprintf(fgo2, "type %s ", name)
 		conf.Fprint(fgo2, fset, def.Go)
 		fmt.Fprintf(fgo2, "\n\n")
@@ -71,7 +78,8 @@ func (p *Package) writeDefs() {
 	}
 
 	cVars := make(map[string]bool)
-	for _, n := range p.Name {
+	for _, key := range nameKeys(p.Name) {
+		n := p.Name[key]
 		if n.Kind != "var" {
 			continue
 		}
@@ -94,14 +102,16 @@ func (p *Package) writeDefs() {
 	}
 	fmt.Fprintf(fc, "\n")
 
-	for _, n := range p.Name {
+	for _, key := range nameKeys(p.Name) {
+		n := p.Name[key]
 		if n.Const != "" {
 			fmt.Fprintf(fgo2, "const _Cconst_%s = %s\n", n.Go, n.Const)
 		}
 	}
 	fmt.Fprintf(fgo2, "\n")
 
-	for _, n := range p.Name {
+	for _, key := range nameKeys(p.Name) {
+		n := p.Name[key]
 		if n.FuncType != nil {
 			p.writeDefsFunc(fc, fgo2, n)
 		}
@@ -128,6 +138,12 @@ func dynimport(obj string) {
 	}
 
 	if f, err := elf.Open(obj); err == nil {
+		if sec := f.Section(".interp"); sec != nil {
+			if data, err := sec.Data(); err == nil && len(data) > 1 {
+				// skip trailing \0 in data
+				fmt.Fprintf(stdout, "#pragma dynlinker %q\n", string(data[:len(data)-1]))
+			}
+		}
 		sym, err := f.ImportedSymbols()
 		if err != nil {
 			fatalf("cannot load imported symbols from ELF file %s: %v", obj, err)
@@ -372,7 +388,8 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 	fmt.Fprintf(fgcc, "%s\n", f.Preamble)
 	fmt.Fprintf(fgcc, "%s\n", gccProlog)
 
-	for _, n := range f.Name {
+	for _, key := range nameKeys(f.Name) {
+		n := f.Name[key]
 		if n.FuncType != nil {
 			p.writeOutputFunc(fgcc, n)
 		}
@@ -456,6 +473,8 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
+
+	fmt.Fprintf(fgcc, "\nextern void crosscall2(void (*fn)(void *, int), void *, int);\n\n")
 
 	for _, exp := range p.ExpFunc {
 		fn := exp.Func
@@ -548,7 +567,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 		s += ")"
 		fmt.Fprintf(fgcch, "\nextern %s;\n", s)
 
-		fmt.Fprintf(fgcc, "extern _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
+		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgcc, "\n%s\n", s)
 		fmt.Fprintf(fgcc, "{\n")
 		fmt.Fprintf(fgcc, "\t%s __attribute__((packed)) a;\n", ctype)
@@ -652,7 +671,21 @@ func (p *Package) writeGccgoExports(fgo2, fc, fm *os.File) {
 		}
 		return '_'
 	}
-	gccgoSymbolPrefix := strings.Map(clean, *gccgoprefix)
+
+	var gccgoSymbolPrefix string
+	if *gccgopkgpath != "" {
+		gccgoSymbolPrefix = strings.Map(clean, *gccgopkgpath)
+	} else {
+		if *gccgoprefix == "" && p.PackageName == "main" {
+			gccgoSymbolPrefix = "main"
+		} else {
+			prefix := strings.Map(clean, *gccgoprefix)
+			if prefix == "" {
+				prefix = "go"
+			}
+			gccgoSymbolPrefix = prefix + "." + p.PackageName
+		}
+	}
 
 	for _, exp := range p.ExpFunc {
 		// TODO: support functions with receivers.
@@ -690,7 +723,7 @@ func (p *Package) writeGccgoExports(fgo2, fc, fm *os.File) {
 
 		// The function name.
 		fmt.Fprintf(cdeclBuf, " "+exp.ExpName)
-		gccgoSymbol := fmt.Sprintf("%s.%s.%s", gccgoSymbolPrefix, p.PackageName, exp.Func.Name)
+		gccgoSymbol := fmt.Sprintf("%s.%s", gccgoSymbolPrefix, exp.Func.Name)
 		fmt.Fprintf(cdeclBuf, " (")
 		// Function parameters.
 		forFieldList(fntype.Params,
@@ -736,25 +769,23 @@ func c(repr string, args ...interface{}) *TypeRepr {
 
 // Map predeclared Go types to Type.
 var goTypes = map[string]*Type{
-	"bool":       {Size: 1, Align: 1, C: c("uchar")},
-	"byte":       {Size: 1, Align: 1, C: c("uchar")},
-	"int":        {Size: 4, Align: 4, C: c("int")},
-	"uint":       {Size: 4, Align: 4, C: c("uint")},
-	"rune":       {Size: 4, Align: 4, C: c("int")},
-	"int8":       {Size: 1, Align: 1, C: c("schar")},
-	"uint8":      {Size: 1, Align: 1, C: c("uchar")},
-	"int16":      {Size: 2, Align: 2, C: c("short")},
-	"uint16":     {Size: 2, Align: 2, C: c("ushort")},
-	"int32":      {Size: 4, Align: 4, C: c("int")},
-	"uint32":     {Size: 4, Align: 4, C: c("uint")},
-	"int64":      {Size: 8, Align: 8, C: c("int64")},
-	"uint64":     {Size: 8, Align: 8, C: c("uint64")},
-	"float":      {Size: 4, Align: 4, C: c("float")},
-	"float32":    {Size: 4, Align: 4, C: c("float")},
-	"float64":    {Size: 8, Align: 8, C: c("double")},
-	"complex":    {Size: 8, Align: 8, C: c("__complex float")},
-	"complex64":  {Size: 8, Align: 8, C: c("__complex float")},
-	"complex128": {Size: 16, Align: 16, C: c("__complex double")},
+	"bool":       {Size: 1, Align: 1, C: c("GoUint8")},
+	"byte":       {Size: 1, Align: 1, C: c("GoUint8")},
+	"int":        {Size: 4, Align: 4, C: c("GoInt")},
+	"uint":       {Size: 4, Align: 4, C: c("GoUint")},
+	"rune":       {Size: 4, Align: 4, C: c("GoInt32")},
+	"int8":       {Size: 1, Align: 1, C: c("GoInt8")},
+	"uint8":      {Size: 1, Align: 1, C: c("GoUint8")},
+	"int16":      {Size: 2, Align: 2, C: c("GoInt16")},
+	"uint16":     {Size: 2, Align: 2, C: c("GoUint16")},
+	"int32":      {Size: 4, Align: 4, C: c("GoInt32")},
+	"uint32":     {Size: 4, Align: 4, C: c("GoUint32")},
+	"int64":      {Size: 8, Align: 8, C: c("GoInt64")},
+	"uint64":     {Size: 8, Align: 8, C: c("GoUint64")},
+	"float32":    {Size: 4, Align: 4, C: c("GoFloat32")},
+	"float64":    {Size: 8, Align: 8, C: c("GoFloat64")},
+	"complex64":  {Size: 8, Align: 8, C: c("GoComplex64")},
+	"complex128": {Size: 16, Align: 16, C: c("GoComplex128")},
 }
 
 // Map an ast type to a Type.
@@ -799,7 +830,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			return def
 		}
 		if t.Name == "uintptr" {
-			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("uintptr")}
+			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("GoUintptr")}
 		}
 		if t.Name == "string" {
 			return &Type{Size: p.PtrSize + 4, Align: p.PtrSize, C: c("GoString")}
@@ -930,16 +961,25 @@ Slice GoBytes(char *p, int n) {
 `
 
 const gccExportHeaderProlog = `
-typedef unsigned int uint;
-typedef signed char schar;
-typedef unsigned char uchar;
-typedef unsigned short ushort;
-typedef long long int64;
-typedef unsigned long long uint64;
-typedef __SIZE_TYPE__ uintptr;
+typedef int GoInt;
+typedef unsigned int GoUint;
+typedef signed char GoInt8;
+typedef unsigned char GoUint8;
+typedef short GoInt16;
+typedef unsigned short GoUint16;
+typedef int GoInt32;
+typedef unsigned int GoUint32;
+typedef long long GoInt64;
+typedef unsigned long long GoUint64;
+typedef __SIZE_TYPE__ GoUintptr;
+typedef float GoFloat32;
+typedef double GoFloat64;
+typedef __complex float GoComplex64;
+typedef __complex double GoComplex128;
 
 typedef struct { char *p; int n; } GoString;
 typedef void *GoMap;
 typedef void *GoChan;
 typedef struct { void *t; void *v; } GoInterface;
+typedef struct { void *data; int len; int cap; } GoSlice;
 `

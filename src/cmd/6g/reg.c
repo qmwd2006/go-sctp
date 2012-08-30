@@ -164,7 +164,7 @@ regopt(Prog *firstp)
 
 	if(first) {
 		fmtinstall('Q', Qconv);
-		exregoffset = D_R13;	// R14,R15 are external
+		exregoffset = D_R15;
 		first = 0;
 	}
 
@@ -326,6 +326,7 @@ regopt(Prog *firstp)
 		case AMOVWLZX:
 		case AMOVWQSX:
 		case AMOVWQZX:
+		case AMOVQL:
 		case APOPQ:
 
 		case AMOVSS:
@@ -780,8 +781,8 @@ brk:
 				p->to.branch = p->to.branch->link;
 	}
 
-	if(r1 != R) {
-		r1->link = freer;
+	if(lastr != R) {
+		lastr->link = freer;
 		freer = firstr;
 	}
 
@@ -1576,7 +1577,7 @@ RtoB(int r)
 int
 BtoR(int32 b)
 {
-	b &= 0x3fffL;		// no R14 or R15
+	b &= 0xffffL;
 	if(b == 0)
 		return 0;
 	return bitno(b) + D_AX;
@@ -1743,7 +1744,7 @@ mark(Prog *firstp)
 		p->reg = alive;
 		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.branch)
 			mark(p->to.branch);
-		if(p->as == AJMP || p->as == ARET || (p->as == ACALL && noreturn(p)))
+		if(p->as == AJMP || p->as == ARET || p->as == AUNDEF)
 			break;
 	}
 }

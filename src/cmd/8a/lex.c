@@ -271,6 +271,7 @@ struct
 	"BSFW",		LTYPE3,	ABSFW,
 	"BSRL",		LTYPE3,	ABSRL,
 	"BSRW",		LTYPE3,	ABSRW,
+	"BSWAPL",	LTYPE1,	ABSWAPL,
 	"BTCL",		LTYPE3,	ABTCL,
 	"BTCW",		LTYPE3,	ABTCW,
 	"BTL",		LTYPE3,	ABTL,
@@ -667,6 +668,11 @@ struct
 	"MFENCE",	LTYPE0, AMFENCE,
 	"SFENCE",	LTYPE0, ASFENCE,
 	"EMMS",		LTYPE0, AEMMS,
+	"PREFETCHT0",		LTYPE2,	APREFETCHT0,
+	"PREFETCHT1",		LTYPE2,	APREFETCHT1,
+	"PREFETCHT2",		LTYPE2,	APREFETCHT2,
+	"PREFETCHNTA",		LTYPE2,	APREFETCHNTA,
+	"UNDEF",	LTYPE0,	AUNDEF,
 
 	0
 };
@@ -915,11 +921,38 @@ outhist(void)
 	Hist *h;
 	char *p, *q, *op, c;
 	int n;
+	char *tofree;
+	static int first = 1;
+	static char *goroot, *goroot_final;
+
+	if(first) {
+		// Decide whether we need to rewrite paths from $GOROOT to $GOROOT_FINAL.
+		first = 0;
+		goroot = getenv("GOROOT");
+		goroot_final = getenv("GOROOT_FINAL");
+		if(goroot == nil)
+			goroot = "";
+		if(goroot_final == nil)
+			goroot_final = goroot;
+		if(strcmp(goroot, goroot_final) == 0) {
+			goroot = nil;
+			goroot_final = nil;
+		}
+	}
+
+	tofree = nil;
 
 	g = nullgen;
 	c = pathchar();
 	for(h = hist; h != H; h = h->link) {
 		p = h->name;
+		if(p != nil && goroot != nil) {
+			n = strlen(goroot);
+			if(strncmp(p, goroot, strlen(goroot)) == 0 && p[n] == '/') {
+				tofree = smprint("%s%s", goroot_final, p+n);
+				p = tofree;
+			}
+		}
 		op = 0;
 		if(systemtype(Windows) && p && p[1] == ':'){
 			c = p[2];
@@ -971,6 +1004,11 @@ outhist(void)
 		Bputc(&obuf, h->line>>24);
 		zaddr(&nullgen, 0);
 		zaddr(&g, 0);
+
+		if(tofree) {
+			free(tofree);
+			tofree = nil;
+		}
 	}
 }
 

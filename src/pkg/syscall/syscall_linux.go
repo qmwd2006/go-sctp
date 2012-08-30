@@ -52,7 +52,11 @@ func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
 	if len(tv) != 2 {
 		return EINVAL
 	}
-	return futimesat(dirfd, StringBytePtr(path), (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+	pathp, err := BytePtrFromString(path)
+	if err != nil {
+		return err
+	}
+	return futimesat(dirfd, pathp, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
 func Futimes(fd int, tv []Timeval) (err error) {
@@ -783,7 +787,11 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 	if data == "" {
 		return mount(source, target, fstype, flags, nil)
 	}
-	return mount(source, target, fstype, flags, StringBytePtr(data))
+	datap, err := BytePtrFromString(data)
+	if err != nil {
+		return err
+	}
+	return mount(source, target, fstype, flags, datap)
 }
 
 // Sendto
@@ -823,7 +831,6 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sysnb	Getpgrp() (pid int)
 //sysnb	Getpid() (pid int)
 //sysnb	Getppid() (ppid int)
-//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
 //sysnb	Getrusage(who int, rusage *Rusage) (err error)
 //sysnb	Gettid() (tid int)
 //sys	InotifyAddWatch(fd int, pathname string, mask uint32) (watchdesc int, err error)
@@ -840,6 +847,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
 //sys	Pause() (err error)
 //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
+//sysnb prlimit(pid int, resource int, old *Rlimit, newlimit *Rlimit) (err error) = SYS_PRLIMIT64
 //sys	Read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Rename(oldpath string, newpath string) (err error)
@@ -848,7 +856,6 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sys	Setdomainname(p []byte) (err error)
 //sys	Sethostname(p []byte) (err error)
 //sysnb	Setpgid(pid int, pgid int) (err error)
-//sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tv *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
