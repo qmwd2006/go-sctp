@@ -201,12 +201,14 @@ func DialSCTP(net string, laddr, raddr *SCTPAddr) (*SCTPConn, error) {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
 
-	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_SEQPACKET, 0, "implicit", sockaddrToSCTP)
+	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_SEQPACKET, 0, "dial", sockaddrToSCTP)
 
 	if err != nil {
 		return nil, err
 	}
-	return newSCTPConn(fd), nil
+  var conn = newSCTPConn(fd)
+  conn.SetInitMsg()
+	return conn, nil
 }
 
 func selfConnectSCTP(fd *netFD) bool {
