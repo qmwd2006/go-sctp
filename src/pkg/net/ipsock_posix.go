@@ -138,7 +138,8 @@ func internetSocket(net string, laddr, raddr sockaddr, sotype, proto int, mode s
 			goto Error
 		}
 	}
-	if mode == "implicit" {
+	if net == "sctpxx" {
+    // Connection gets setup implicitly 
 		fd, err = socketOnly(net, family, sotype, proto, ipv6only, la, ra, toAddr)
 	} else {
 		fd, err = socket(net, family, sotype, proto, ipv6only, la, ra, toAddr)
