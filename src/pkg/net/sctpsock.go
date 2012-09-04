@@ -84,7 +84,7 @@ func (c *SCTPConn) SetNumOStreams(n uint16) error {
 		return syscall.EINVAL
 	}
   c.sim.Num_ostreams = n
-  return nil
+	return setSCTPInitMsg(c.fd, &c.sim)
 }
 
 func (c *SCTPConn) SetMAxInStreams(n uint16) error {
@@ -92,7 +92,7 @@ func (c *SCTPConn) SetMAxInStreams(n uint16) error {
 		return syscall.EINVAL
 	}
   c.sim.Max_instreams = n
-  return nil
+	return setSCTPInitMsg(c.fd, &c.sim)
 }
 
 func (c *SCTPConn) SetMaxAttempts(n uint16) error {
@@ -100,7 +100,7 @@ func (c *SCTPConn) SetMaxAttempts(n uint16) error {
 		return syscall.EINVAL
 	}
   c.sim.Max_attempts = n
-  return nil
+	return setSCTPInitMsg(c.fd, &c.sim)
 }
 
 func (c *SCTPConn) SetMaxInitTimeout(n uint16) error {
@@ -108,9 +108,8 @@ func (c *SCTPConn) SetMaxInitTimeout(n uint16) error {
 		return syscall.EINVAL
 	}
   c.sim.Max_init_timeo = n
-  return nil
+	return setSCTPInitMsg(c.fd, &c.sim)
 }
-
 
 func (c *SCTPConn) ok() bool { return c != nil && c.fd != nil }
 
