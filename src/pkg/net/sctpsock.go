@@ -61,6 +61,7 @@ func (a *SCTPAddr) toAddr() sockaddr {
 type SCTPConn struct {
 	fd     *netFD
 	stream uint16
+  sim syscall.SCTPInitMsg
 }
 
 func (c *SCTPConn) GetstreamId() uint16 {
@@ -68,10 +69,48 @@ func (c *SCTPConn) GetstreamId() uint16 {
 }
 
 func newSCTPConn(fd *netFD) *SCTPConn {
-	c := &SCTPConn{fd, 0}
+  var sim syscall.SCTPInitMsg
+	sim.Num_ostreams = 0
+	sim.Max_instreams = 0
+	sim.Max_attempts = 0
+	sim.Max_init_timeo = 0
+	c := &SCTPConn{fd, 0, sim}
 	c.SetNoDelaySCTP(true)
 	return c
 }
+
+func (c *SCTPConn) SetNumOStreams(n uint16) error {
+	if !c.ok() {
+		return syscall.EINVAL
+	}
+  c.sim.Num_ostreams = n
+  return nil
+}
+
+func (c *SCTPConn) SetMAxInStreams(n uint16) error {
+	if !c.ok() {
+		return syscall.EINVAL
+	}
+  c.sim.Max_instreams = n
+  return nil
+}
+
+func (c *SCTPConn) SetMaxAttempts(n uint16) error {
+	if !c.ok() {
+		return syscall.EINVAL
+	}
+  c.sim.Max_attempts = n
+  return nil
+}
+
+func (c *SCTPConn) SetMaxInitTimeout(n uint16) error {
+	if !c.ok() {
+		return syscall.EINVAL
+	}
+  c.sim.Max_init_timeo = n
+  return nil
+}
+
 
 func (c *SCTPConn) ok() bool { return c != nil && c.fd != nil }
 
@@ -201,7 +240,7 @@ func DialSCTP(net string, laddr, raddr *SCTPAddr) (*SCTPConn, error) {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
 
-	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_SEQPACKET, 0, "dial", sockaddrToSCTP)
+	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_SEQPACKET, syscall.IPPROTO_SCTP, "dial", sockaddrToSCTP)
 
 	if err != nil {
 		return nil, err
@@ -412,13 +451,7 @@ func (c *SCTPConn) SetInitMsg() (err error) {
 	if !c.ok() {
 		return syscall.EINVAL
 	}
-	var sim syscall.SCTPInitMsg
-	sim.Num_ostreams = 100
-	sim.Max_instreams = 100
-	sim.Max_attempts = 0
-	sim.Max_init_timeo = 0
-
-	return setSCTPInitMsg(c.fd, &sim)
+	return setSCTPInitMsg(c.fd, &c.sim)
 }
 
 func (c *SCTPConn) SetNoDelaySCTP(noDelay bool) error {
