@@ -165,7 +165,7 @@ func setReceiveReceiveInfo(fd *netFD, info bool) error {
 		return err
 	}
 	defer fd.decref()
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.SCTP_RECVRCVINFO, boolint(info)))
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_RECVRCVINFO, boolint(!info)))
 }
 
 
