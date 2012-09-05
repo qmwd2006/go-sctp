@@ -242,7 +242,6 @@ func DialSCTP(net string, laddr, raddr *SCTPAddr) (*SCTPConn, error) {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
 	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_SEQPACKET, syscall.IPPROTO_SCTP, "dial", sockaddrToSCTP)
-  os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_LISTEN_FIX, 0))
 
 	if err != nil {
 		return nil, err

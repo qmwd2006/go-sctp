@@ -22,7 +22,7 @@ func ListenSCTP(net string, laddr *SCTPAddr) (conn *SCTPConn, err error) {
 	conn.SetInitMsg()
 
 	err = syscall.Listen(fd.sysfd, listenerBacklog)
-	os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_LISTEN_FIX, 0))
+	os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_LISTEN_FIX, 1))
 	if err != nil {
 		closesocket(fd.sysfd)
 		return nil, &OpError{"listen", net, laddr, err}
