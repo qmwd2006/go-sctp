@@ -49,7 +49,7 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 		return nil, err
 	}
 
-	if ursa != nil {
+	if ursa != nil && net != "sctp" {
 		if err = fd.connect(ursa); err != nil {
 			closesocket(s)
 			fd.Close()
@@ -65,45 +65,6 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 		laddr = localSockname(fd, toAddr)
 	}
 	fd.setAddr(laddr, remoteSockname(fd, toAddr))
-	return fd, nil
-}
-
-func socketOnly(net string, f, t, p int, ipv6only bool, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
-	// See ../syscall/exec.go for description of ForkLock.
-	syscall.ForkLock.RLock()
-	s, err := syscall.Socket(f, t, p)
-	if err != nil {
-		syscall.ForkLock.RUnlock()
-		return nil, err
-	}
-	syscall.CloseOnExec(s)
-	syscall.ForkLock.RUnlock()
-
-	err = setDefaultSockopts(s, f, t, ipv6only)
-	if err != nil {
-		closesocket(s)
-		return nil, err
-	}
-
-	var bla syscall.Sockaddr
-	if la != nil {
-		bla, err = listenerSockaddr(s, f, la, toAddr)
-		if err != nil {
-			closesocket(s)
-			return nil, err
-		}
-		err = syscall.Bind(s, bla)
-		if err != nil {
-			closesocket(s)
-			return nil, err
-		}
-	}
-
-	if fd, err = newFD(s, f, t, net); err != nil {
-		closesocket(s)
-		return nil, err
-	}
-
 	return fd, nil
 }
 
