@@ -60,22 +60,18 @@ func (a *SCTPAddr) toAddr() sockaddr {
 // for SCTP network connections.
 type SCTPConn struct {
 	fd     *netFD
-	stream uint16
   sim syscall.SCTPInitMsg
-}
-
-func (c *SCTPConn) GetstreamId() uint16 {
-	return c.stream
 }
 
 func newSCTPConn(fd *netFD) *SCTPConn {
   var sim syscall.SCTPInitMsg
-	sim.Num_ostreams = 0
-	sim.Max_instreams = 0
+	sim.Num_ostreams = 100
+	sim.Max_instreams = 100
 	sim.Max_attempts = 0
 	sim.Max_init_timeo = 0
-	c := &SCTPConn{fd, 0, sim}
+	c := &SCTPConn{fd, sim}
 	c.SetNoDelaySCTP(true)
+  c.SetReceiveReceiveInfo(false)
 	return c
 }
 
@@ -155,6 +151,13 @@ func (c *SCTPConn) LocalAddr() Addr {
 		return nil
 	}
 	return c.fd.laddr
+}
+
+func (c *SCTPConn) SetReceiveReceiveInfo(b bool) error {
+	if !c.ok() {
+		return syscall.EINVAL
+	}
+  return setReceiveReceiveInfo(c.fd, b)
 }
 
 // SetDeadline implements the Conn SetDeadline method.
@@ -238,8 +241,8 @@ func DialSCTP(net string, laddr, raddr *SCTPAddr) (*SCTPConn, error) {
 	if raddr == nil {
 		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
-
 	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_SEQPACKET, syscall.IPPROTO_SCTP, "dial", sockaddrToSCTP)
+  os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_LISTEN_FIX, 0))
 
 	if err != nil {
 		return nil, err
@@ -353,16 +356,16 @@ func ResolveSCTPAddr(net, addr string) (*SCTPAddr, error) {
 	return &SCTPAddr{ip, port}, nil
 }
 
-func (c *SCTPConn) ReadFromSCTP(b []byte) (n int, addr *SCTPAddr, err error) {
+func (c *SCTPConn) ReadFromSCTP(b []byte) (n int, addr *SCTPAddr, sid uint16, err error) {
 	if !c.ok() {
-		return 0, nil, syscall.EINVAL
+		return 0, nil, 0, syscall.EINVAL
 	}
 	var rinfo *syscall.SCTPRcvInfo
 	n, sa, rinfo, err := c.fd.ReadFromSCTP(b)
-	c.stream = rinfo.Sid
+	sid = rinfo.Sid
 
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, 0, err
 	}
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
@@ -377,15 +380,14 @@ func (c *SCTPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
 	}
-	n, uaddr, err := c.ReadFromSCTP(b)
+	n, uaddr, _, err := c.ReadFromSCTP(b)
 	if err != nil {
 		return 0, nil, err
 	}
 	return n, uaddr.toAddr(), err
-
 }
 
-func (c *SCTPConn) WriteToSCTP(b []byte, addr *SCTPAddr) (n int, err error) {
+func (c *SCTPConn) WriteToSCTP(b []byte, addr *SCTPAddr, sid uint16) (n int, err error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
 	}
@@ -395,13 +397,12 @@ func (c *SCTPConn) WriteToSCTP(b []byte, addr *SCTPAddr) (n int, err error) {
 		return 0, &OpError{"write", c.fd.net, addr, err}
 	}
 
-	// TODO create SndInfo struct
 	var sinfo syscall.SCTPSndInfo
-	// sinfo.snd_sid
-	// sinfo.snd_flags
-	// sinfo.snd_ppid
-	// sinfo.snd_context
-	// sinfo.snd_assoc_id
+	sinfo.Sid = sid
+	// sinfo.Flags
+	// sinfo.Ppid
+	// sinfo.Context
+	// sinfo.Assoc_id
 
 	return c.fd.WriteToSCTP(b, &sinfo, sa)
 }
@@ -414,7 +415,7 @@ func (c *SCTPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 	if !ok {
 		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
 	}
-	return c.WriteToSCTP(b, a)
+	return c.WriteToSCTP(b, a, 0)
 }
 
 func (c *SCTPConn) Read(b []byte) (n int, err error) {
