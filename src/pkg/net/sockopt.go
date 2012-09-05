@@ -160,6 +160,15 @@ func setNoDelay(fd *netFD, noDelay bool) error {
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay)))
 }
 
+func setReceiveReceiveInfo(fd *netFD, info bool) error {
+	if err := fd.incref(false); err != nil {
+		return err
+	}
+	defer fd.decref()
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.SCTP_RECVRCVINFO, boolint(info)))
+}
+
+
 func setLinger(fd *netFD, sec int) error {
 	var l syscall.Linger
 	if sec >= 0 {
