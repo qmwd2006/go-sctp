@@ -27,10 +27,10 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 	syscall.CloseOnExec(s)
 	syscall.ForkLock.RUnlock()
 
-	if err = setDefaultSockopts(s, f, t, ipv6only); err != nil {
-		closesocket(s)
-		return nil, err
-	}
+  if err = setDefaultSockopts(s, f, t, ipv6only); err != nil {
+    closesocket(s)
+    return nil, err
+  }
 
 	var blsa syscall.Sockaddr
 	if ulsa != nil {
@@ -49,22 +49,28 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
 		return nil, err
 	}
 
-	if ursa != nil && net != "sctp" {
-		if err = fd.connect(ursa); err != nil {
-			closesocket(s)
-			fd.Close()
-			return nil, err
-		}
-		fd.isConnected = true
-	}
+  if(net != "sctp") {
+    if ursa != nil {
+      if err = fd.connect(ursa); err != nil {
+        closesocket(s)
+        fd.Close()
+        return nil, err
+      }
+      fd.isConnected = true
+    }
+  }
 
-	var laddr Addr
-	if ulsa != nil && blsa != ulsa {
-		laddr = toAddr(ulsa)
-	} else {
-		laddr = localSockname(fd, toAddr)
-	}
-	fd.setAddr(laddr, remoteSockname(fd, toAddr))
+  var laddr Addr
+  if ulsa != nil && blsa != ulsa {
+    laddr = toAddr(ulsa)
+  } else {
+    if net != "sctp" {
+      laddr = localSockname(fd, toAddr)
+    }
+  }
+  if net != "sctp" {
+    fd.setAddr(laddr, remoteSockname(fd, toAddr))
+  }
 	return fd, nil
 }
 

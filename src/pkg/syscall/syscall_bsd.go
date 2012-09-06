@@ -17,6 +17,7 @@ import (
 	"unsafe"
 )
 
+
 /*
  * Pseudo-system calls
  */
@@ -659,8 +660,23 @@ func SCTPSendmsg(fd int, p []byte, sinfo *SCTPSndInfo, to Sockaddr, flags int) (
     iov.Base = &dummy
     iov.SetLen(1)
   }
-  msg.Control = (*byte)(unsafe.Pointer(sinfo))
-  msg.SetControllen(SizeofSCTPSndInfo)
+  controlBuffer := make([]byte, SizeofCmsghdr + SizeofSCTPSndInfo)
+
+  cdata := (controlBuffer[:])
+  var cmsg *Cmsghdr
+  cmsg = (*Cmsghdr)(unsafe.Pointer(&cdata[0]))
+  cmsg.Level = IPPROTO_SCTP
+  cmsg.Type = SCTP_SNDINFO;
+  cmsg.SetLen(CmsgLen(SizeofSCTPSndInfo))
+
+  var bsinfo *SCTPSndInfo
+  data := (controlBuffer[cmsgAlignOf(SizeofCmsghdr):])
+  bsinfo = (*SCTPSndInfo) (unsafe.Pointer(&data[0]))
+  bsinfo.Sid = sinfo.Sid
+
+  msg.Control = (*byte)(unsafe.Pointer(&controlBuffer[0]))
+  msg.SetControllen(len(controlBuffer))
+
   msg.Iov = &iov
 	msg.Iovlen = 1
 	if err = sendmsg(fd, &msg, flags); err != nil {
@@ -689,16 +705,18 @@ func SCTPReceiveMessage(fd int, p []byte) (n int, from Sockaddr, rinfo *SCTPRcvI
   var cmsg *Cmsghdr
 
   controlBuffer := make([]byte, SizeofCmsghdr + SizeofSCTPRcvInfo)
-  data := (controlBuffer[cmsgAlignOf(SizeofCmsghdr):])
-  rinfo = (*SCTPRcvInfo)(unsafe.Pointer(&data[0]))
-  cmsg = (*Cmsghdr)(unsafe.Pointer(&controlBuffer[0]))
-  cmsg.Level = IPPROTO_SCTP
-  cmsg.Type = SCTP_SNDRCV
+  cdata := (controlBuffer[:])
+  cmsg = (*Cmsghdr)(unsafe.Pointer(&cdata[0]))
   msg.Control = (*byte)(unsafe.Pointer(&controlBuffer[0]))
   msg.SetControllen(len(controlBuffer))
 
   flags = 0;
   n, err = recvmsg(fd, &msg, flags)
+
+  if cmsg.Type == SCTP_RCVINFO {
+    data := (controlBuffer[cmsgAlignOf(SizeofCmsghdr):])
+    rinfo = (*SCTPRcvInfo)(unsafe.Pointer(&data[0]))
+  }
 
   if err != nil {
     return 0, nil, nil, 0, err

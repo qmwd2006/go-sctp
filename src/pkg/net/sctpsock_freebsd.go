@@ -1,10 +1,6 @@
 package net
 
 import (
-<<<<<<< local
-=======
-	"os"
->>>>>>> other
 	"syscall"
 )
 
@@ -17,11 +13,7 @@ func ListenSCTP(net string, laddr *SCTPAddr) (conn *SCTPConn, err error) {
 	if laddr == nil {
 		return nil, &OpError{"listen", net, nil, errMissingAddress}
 	}
-<<<<<<< local
 	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_SEQPACKET, syscall.IPPROTO_SCTP, "dial", sockaddrToSCTP)
-=======
-	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_SEQPACKET, syscall.IPPROTO_SCTP, "implicit", sockaddrToSCTP)
->>>>>>> other
 	if err != nil {
 		return nil, err
 	}
