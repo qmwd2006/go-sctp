@@ -65,8 +65,8 @@ type SCTPConn struct {
 
 func newSCTPConn(fd *netFD) *SCTPConn {
   var sim syscall.SCTPInitMsg
-	sim.Num_ostreams = 100
-	sim.Max_instreams = 100
+	sim.Num_ostreams = 0
+	sim.Max_instreams = 0
 	sim.Max_attempts = 0
 	sim.Max_init_timeo = 0
 	c := &SCTPConn{fd, sim}

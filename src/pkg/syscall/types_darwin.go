@@ -159,6 +159,8 @@ type SCTPSndInfo C.struct_sctp_sndinfo
 
 type SCTPRcvInfo C.struct_sctp_rcvinfo
 
+type SCTPEvent C.struct_sctp_event
+
 const (
 	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
 	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
@@ -174,6 +176,7 @@ const (
   SizeofSCTPSndInfo      = C.sizeof_struct_sctp_sndinfo
   SizeofSCTPRcvInfo      = C.sizeof_struct_sctp_rcvinfo
   SizeofSCTPInitMsg      = C.sizeof_struct_sctp_initmsg
+  SizeofSCTPEvent        = C.sizeof_struct_sctp_event
 )
 
 // Ptrace requests

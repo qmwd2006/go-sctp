@@ -266,6 +266,13 @@ type SCTPRcvInfo struct {
 	Assoc_id  uint32
 }
 
+type SCTPEvent struct {
+	Assoc_id  uint32
+	Type      uint16
+	On        uint8
+	Pad_cgo_0 [1]byte
+}
+
 const (
 	SizeofSockaddrInet4    = 0x10
 	SizeofSockaddrInet6    = 0x1c
@@ -281,6 +288,7 @@ const (
 	SizeofSCTPSndInfo      = 0x10
 	SizeofSCTPRcvInfo      = 0x1c
 	SizeofSCTPInitMsg      = 0x8
+	SizeofSCTPEvent        = 0x8
 )
 
 const (
