@@ -438,6 +438,10 @@ func SetsockoptString(fd, level, opt int, s string) (err error) {
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), uintptr(len(s)))
 }
 
+func SetsockoptSCTPEvent(fd, level, opt int, se *SCTPEvent) (err error) {
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(se)), unsafe.Sizeof(*se))
+}
+
 //sys recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
 
 func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {

@@ -61,6 +61,7 @@ func (a *SCTPAddr) toAddr() sockaddr {
 type SCTPConn struct {
 	fd     *netFD
   sim syscall.SCTPInitMsg
+  assoc map[uint16] *SCTPAssoc
 }
 
 func newSCTPConn(fd *netFD) *SCTPConn {
@@ -465,6 +466,13 @@ func (c *SCTPConn) SetRecvInfo(recvInfo bool) error {
 		return syscall.EINVAL
 	}
 	return setRecvInfo(c.fd, recvInfo)
+}
+
+func (c *SCTPConn) SetNotificationAssociationChange(assocChange bool) error {
+	if !c.ok() {
+		return syscall.EINVAL
+	}
+	return setNotificationAssociationChange(c.fd, assocChange)
 }
 
 func setRecvInfo(fd *netFD, recvInfo bool) error {

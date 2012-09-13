@@ -80,3 +80,17 @@ func setNoDelaySCTP(fd *netFD, noDelay bool) error {
 	defer fd.decref()
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_NODELAY, boolint(noDelay)))
 }
+
+func setNotificationAssociationChange(fd *netFD, notify bool) error {
+	if err := fd.incref(false); err != nil {
+		return err
+	}
+  defer fd.decref()
+  var event syscall.SCTPEvent
+  event.Assoc_id = syscall.SCTP_FUTURE_ASSOC;
+  event.Type = syscall.SCTP_ASSOC_CHANGE;
+  event.On = uint8(boolint(notify));
+
+  return os.NewSyscallError("setsockopt", syscall.SetsockoptSCTPEvent(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_EVENT, &event))
+}
+
