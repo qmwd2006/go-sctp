@@ -13,7 +13,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -30,7 +29,7 @@ import (
 )
 
 var (
-	tag      = flag.String("tag", "weekly", "mercurial tag to check out")
+	tag      = flag.String("tag", "release", "mercurial tag to check out")
 	repo     = flag.String("repo", "https://code.google.com/p/go", "repo URL")
 	verbose  = flag.Bool("v", false, "verbose output")
 	upload   = flag.Bool("upload", true, "upload resulting files to Google Code")
@@ -41,8 +40,7 @@ var (
 )
 
 const (
-	packageMaker = "/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker"
-	uploadURL    = "https://go.googlecode.com/files"
+	uploadURL = "https://go.googlecode.com/files"
 )
 
 var preBuildCleanFiles = []string{
@@ -211,14 +209,20 @@ func (b *Build) Do() error {
 	}
 
 	// Create packages.
-	base := fmt.Sprintf("go.%s.%s-%s", version, b.OS, b.Arch)
+	base := fmt.Sprintf("%s.%s-%s", version, b.OS, b.Arch)
+	if !strings.HasPrefix(base, "go") {
+		base = "go." + base
+	}
 	var targs []string
 	switch b.OS {
 	case "linux", "freebsd", "":
 		// build tarball
 		targ := base
 		if b.Source {
-			targ = fmt.Sprintf("go.%s.src", version)
+			targ = fmt.Sprintf("%s.src", version)
+			if !strings.HasPrefix(targ, "go") {
+				targ = "go." + targ
+			}
 		}
 		targ += ".tar.gz"
 		err = makeTar(targ, work)
@@ -231,7 +235,7 @@ func (b *Build) Do() error {
 			return err
 		}
 		localDir := filepath.Join(work, "usr/local")
-		err = os.MkdirAll(localDir, 0744)
+		err = os.MkdirAll(localDir, 0755)
 		if err != nil {
 			return err
 		}
@@ -240,23 +244,30 @@ func (b *Build) Do() error {
 			return err
 		}
 		// build package
-		pm := packageMaker
-		if !exists(pm) {
-			pm = "/Developer" + pm
-			if !exists(pm) {
-				return errors.New("couldn't find PackageMaker")
-			}
+		pkgdest, err := ioutil.TempDir("", "pkgdest")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(pkgdest)
+		dist := filepath.Join(runtime.GOROOT(), "misc/dist")
+		_, err = b.run("", "pkgbuild",
+			"--identifier", "com.googlecode.go",
+			"--version", "1.0",
+			"--scripts", filepath.Join(dist, "darwin/scripts"),
+			"--root", work,
+			filepath.Join(pkgdest, "com.googlecode.go.pkg"))
+		if err != nil {
+			return err
 		}
 		targ := base + ".pkg"
-		scripts := filepath.Join(work, "usr/local/go/misc/dist/darwin/scripts")
-		_, err = b.run("", pm, "-v",
-			"-r", work,
-			"-o", targ,
-			"--scripts", scripts,
-			"--id", "com.googlecode.go",
-			"--title", "Go",
-			"--version", "1.0",
-			"--target", "10.6")
+		_, err = b.run("", "productbuild",
+			"--distribution", filepath.Join(dist, "darwin/Distribution"),
+			"--resources", filepath.Join(dist, "darwin/Resources"),
+			"--package-path", pkgdest,
+			targ)
+		if err != nil {
+			return err
+		}
 		targs = append(targs, targ)
 	case "windows":
 		// Create ZIP file.
@@ -390,9 +401,9 @@ func (b *Build) Upload(version string, filename string) error {
 	os_, arch := b.OS, b.Arch
 	switch b.Arch {
 	case "386":
-		arch = "32-bit"
+		arch = "x86 32-bit"
 	case "amd64":
-		arch = "64-bit"
+		arch = "x86 64-bit"
 	}
 	if arch != "" {
 		labels = append(labels, "Arch-"+b.Arch)
@@ -552,7 +563,7 @@ func makeTar(targ, workdir string) error {
 	zout := gzip.NewWriter(f)
 	tw := tar.NewWriter(zout)
 
-	filepath.Walk(workdir, filepath.WalkFunc(func(path string, fi os.FileInfo, err error) error {
+	err = filepath.Walk(workdir, func(path string, fi os.FileInfo, err error) error {
 		if !strings.HasPrefix(path, workdir) {
 			log.Panicf("walked filename %q doesn't begin with workdir %q", path, workdir)
 		}
@@ -570,10 +581,8 @@ func makeTar(targ, workdir string) error {
 		if *verbose {
 			log.Printf("adding to tar: %s", name)
 		}
-		if fi.IsDir() {
-			return nil
-		}
-		hdr, err := tarFileInfoHeader(fi, path)
+		target, _ := os.Readlink(path)
+		hdr, err := tar.FileInfoHeader(fi, target)
 		if err != nil {
 			return err
 		}
@@ -594,6 +603,9 @@ func makeTar(targ, workdir string) error {
 		if err != nil {
 			return fmt.Errorf("Error writing file %q: %v", name, err)
 		}
+		if fi.IsDir() {
+			return nil
+		}
 		r, err := os.Open(path)
 		if err != nil {
 			return err
@@ -601,8 +613,10 @@ func makeTar(targ, workdir string) error {
 		defer r.Close()
 		_, err = io.Copy(tw, r)
 		return err
-	}))
-
+	})
+	if err != nil {
+		return err
+	}
 	if err := tw.Close(); err != nil {
 		return err
 	}
@@ -619,10 +633,7 @@ func makeZip(targ, workdir string) error {
 	}
 	zw := zip.NewWriter(f)
 
-	filepath.Walk(workdir, filepath.WalkFunc(func(path string, fi os.FileInfo, err error) error {
-		if fi.IsDir() {
-			return nil
-		}
+	err = filepath.Walk(workdir, func(path string, fi os.FileInfo, err error) error {
 		if !strings.HasPrefix(path, workdir) {
 			log.Panicf("walked filename %q doesn't begin with workdir %q", path, workdir)
 		}
@@ -649,9 +660,16 @@ func makeZip(targ, workdir string) error {
 		}
 		fh.Name = name
 		fh.Method = zip.Deflate
+		if fi.IsDir() {
+			fh.Name += "/"        // append trailing slash
+			fh.Method = zip.Store // no need to deflate 0 byte files
+		}
 		w, err := zw.CreateHeader(fh)
 		if err != nil {
 			return err
+		}
+		if fi.IsDir() {
+			return nil
 		}
 		r, err := os.Open(path)
 		if err != nil {
@@ -660,8 +678,10 @@ func makeZip(targ, workdir string) error {
 		defer r.Close()
 		_, err = io.Copy(w, r)
 		return err
-	}))
-
+	})
+	if err != nil {
+		return err
+	}
 	if err := zw.Close(); err != nil {
 		return err
 	}
@@ -732,65 +752,4 @@ func lookPath(prog string) (absPath string, err error) {
 		}
 	}
 	return
-}
-
-// sysStat, if non-nil, populates h from system-dependent fields of fi.
-var sysStat func(fi os.FileInfo, h *tar.Header) error
-
-// Mode constants from the tar spec.
-const (
-	c_ISDIR  = 040000
-	c_ISFIFO = 010000
-	c_ISREG  = 0100000
-	c_ISLNK  = 0120000
-	c_ISBLK  = 060000
-	c_ISCHR  = 020000
-	c_ISSOCK = 0140000
-)
-
-// tarFileInfoHeader creates a partially-populated Header from an os.FileInfo.
-// The filename parameter is used only in the case of symlinks, to call os.Readlink.
-// If fi is a symlink but filename is empty, an error is returned.
-func tarFileInfoHeader(fi os.FileInfo, filename string) (*tar.Header, error) {
-	h := &tar.Header{
-		Name:    fi.Name(),
-		ModTime: fi.ModTime(),
-		Mode:    int64(fi.Mode().Perm()), // or'd with c_IS* constants later
-	}
-	switch {
-	case fi.Mode()&os.ModeType == 0:
-		h.Mode |= c_ISREG
-		h.Typeflag = tar.TypeReg
-		h.Size = fi.Size()
-	case fi.IsDir():
-		h.Typeflag = tar.TypeDir
-		h.Mode |= c_ISDIR
-	case fi.Mode()&os.ModeSymlink != 0:
-		h.Typeflag = tar.TypeSymlink
-		h.Mode |= c_ISLNK
-		if filename == "" {
-			return h, fmt.Errorf("archive/tar: unable to populate Header.Linkname of symlinks")
-		}
-		targ, err := os.Readlink(filename)
-		if err != nil {
-			return h, err
-		}
-		h.Linkname = targ
-	case fi.Mode()&os.ModeDevice != 0:
-		if fi.Mode()&os.ModeCharDevice != 0 {
-			h.Mode |= c_ISCHR
-			h.Typeflag = tar.TypeChar
-		} else {
-			h.Mode |= c_ISBLK
-			h.Typeflag = tar.TypeBlock
-		}
-	case fi.Mode()&os.ModeSocket != 0:
-		h.Mode |= c_ISSOCK
-	default:
-		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fi.Mode())
-	}
-	if sysStat != nil {
-		return h, sysStat(fi, h)
-	}
-	return h, nil
 }

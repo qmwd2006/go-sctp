@@ -1,4 +1,11 @@
-This is the source code repository for the Go programming language.  
+This is the source code repository for the Go programming language
+extended with the SCTP protocol.
+
+This code is experimental and should not be used in production.
+
+Question about the SCTP implementation email:
+Olivier Van Acker: cyberroadie at gmail com
+
 
 For documentation about how to install and use Go,
 visit http://golang.org/ or load doc/install.html in your web browser.

@@ -375,6 +375,7 @@ var fmttests = []struct {
 	{"%#v", &iarray, `&[4]interface {}{1, "hello", 2.5, interface {}(nil)}`},
 	{"%#v", map[int]byte(nil), `map[int]uint8(nil)`},
 	{"%#v", map[int]byte{}, `map[int]uint8{}`},
+	{"%#v", "foo", `"foo"`},
 
 	// slices with other formats
 	{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},
@@ -441,6 +442,11 @@ var fmttests = []struct {
 	{"%v", (*int)(nil), "<nil>"},
 	{"%v", new(int), "0xPTR"},
 
+	// %d etc. pointers use specified base.
+	{"%d", new(int), "PTR_d"},
+	{"%o", new(int), "PTR_o"},
+	{"%x", new(int), "PTR_x"},
+
 	// %d on Stringer should give integer if possible
 	{"%s", time.Time{}.Month(), "January"},
 	{"%d", time.Time{}.Month(), "1"},
@@ -470,14 +476,26 @@ func TestSprintf(t *testing.T) {
 	for _, tt := range fmttests {
 		s := Sprintf(tt.fmt, tt.val)
 		if i := strings.Index(tt.out, "PTR"); i >= 0 {
+			pattern := "PTR"
+			chars := "0123456789abcdefABCDEF"
+			switch {
+			case strings.HasPrefix(tt.out[i:], "PTR_d"):
+				pattern = "PTR_d"
+				chars = chars[:10]
+			case strings.HasPrefix(tt.out[i:], "PTR_o"):
+				pattern = "PTR_o"
+				chars = chars[:8]
+			case strings.HasPrefix(tt.out[i:], "PTR_x"):
+				pattern = "PTR_x"
+			}
 			j := i
 			for ; j < len(s); j++ {
 				c := s[j]
-				if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+				if !strings.ContainsRune(chars, rune(c)) {
 					break
 				}
 			}
-			s = s[0:i] + "PTR" + s[j:]
+			s = s[0:i] + pattern + s[j:]
 		}
 		if s != tt.out {
 			if _, ok := tt.val.(string); ok {
@@ -524,6 +542,14 @@ func BenchmarkSprintfPrefixedInt(b *testing.B) {
 func BenchmarkSprintfFloat(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Sprintf("%g", 5.23184)
+	}
+}
+
+func BenchmarkManyArgs(b *testing.B) {
+	var buf bytes.Buffer
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Fprintf(&buf, "%2d/%2d/%2d %d:%d:%d %s %s\n", 3, 4, 5, 11, 12, 13, "hello", "world")
 	}
 }
 
@@ -840,5 +866,17 @@ func TestIsSpace(t *testing.T) {
 		if IsSpace(i) != unicode.IsSpace(i) {
 			t.Errorf("isSpace(%U) = %v, want %v", i, IsSpace(i), unicode.IsSpace(i))
 		}
+	}
+}
+
+func TestNilDoesNotBecomeTyped(t *testing.T) {
+	type A struct{}
+	type B struct{}
+	var a *A = nil
+	var b B = B{}
+	got := Sprintf("%s %s %s %s %s", nil, a, nil, b, nil)
+	const expect = "%!s(<nil>) %!s(*fmt_test.A=<nil>) %!s(<nil>) {} %!s(<nil>)"
+	if got != expect {
+		t.Errorf("expected:\n\t%q\ngot:\n\t%q", expect, got)
 	}
 }

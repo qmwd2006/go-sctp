@@ -40,6 +40,7 @@ package syscall
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <netinet/sctp.h>
 
 enum {
 	sizeofPtr = sizeof(void*),
@@ -159,6 +160,12 @@ type Cmsghdr C.struct_cmsghdr
 
 type Inet6Pktinfo C.struct_in6_pktinfo
 
+type SCTPInitMsg C.struct_sctp_initmsg
+
+type SCTPSndInfo C.struct_sctp_sndinfo
+
+type SCTPRcvInfo C.struct_sctp_rcvinfo
+
 const (
 	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
 	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
@@ -171,7 +178,10 @@ const (
 	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
 	SizeofMsghdr           = C.sizeof_struct_msghdr
 	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
-	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
+  SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
+  SizeofSCTPSndInfo      = C.sizeof_struct_sctp_sndinfo
+  SizeofSCTPRcvInfo      = C.sizeof_struct_sctp_rcvinfo
+  SizeofSCTPInitMsg      = C.sizeof_struct_sctp_initmsg
 )
 
 // Ptrace requests

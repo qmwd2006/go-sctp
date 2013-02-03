@@ -124,8 +124,8 @@ enum
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
 	// on the hardware details of the machine.  The garbage
-	// collector scales well to 4 cpus.
-	MaxGcproc = 4,
+	// collector scales well to 8 cpus.
+	MaxGcproc = 8,
 };
 
 // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
@@ -273,19 +273,19 @@ struct MCacheList
 struct MCache
 {
 	MCacheList list[NumSizeClasses];
-	uint64 size;
-	int64 local_cachealloc;	// bytes allocated (or freed) from cache since last lock of heap
-	int64 local_objects;	// objects allocated (or freed) from cache since last lock of heap
-	int64 local_alloc;	// bytes allocated (or freed) since last lock of heap
-	int64 local_total_alloc;	// bytes allocated (even if freed) since last lock of heap
-	int64 local_nmalloc;	// number of mallocs since last lock of heap
-	int64 local_nfree;	// number of frees since last lock of heap
-	int64 local_nlookup;	// number of pointer lookups since last lock of heap
+	uintptr size;
+	intptr local_cachealloc;	// bytes allocated (or freed) from cache since last lock of heap
+	intptr local_objects;	// objects allocated (or freed) from cache since last lock of heap
+	intptr local_alloc;	// bytes allocated (or freed) since last lock of heap
+	uintptr local_total_alloc;	// bytes allocated (even if freed) since last lock of heap
+	uintptr local_nmalloc;	// number of mallocs since last lock of heap
+	uintptr local_nfree;	// number of frees since last lock of heap
+	uintptr local_nlookup;	// number of pointer lookups since last lock of heap
 	int32 next_sample;	// trigger heap sample after allocating this many bytes
 	// Statistics about allocation size classes since last lock of heap
 	struct {
-		int64 nmalloc;
-		int64 nfree;
+		uintptr nmalloc;
+		uintptr nfree;
 	} local_by_size[NumSizeClasses];
 
 };
@@ -306,7 +306,6 @@ struct MSpan
 {
 	MSpan	*next;		// in a span linked list
 	MSpan	*prev;		// in a span linked list
-	MSpan	*allnext;	// in the list of all spans
 	PageID	start;		// starting page number
 	uintptr	npages;		// number of pages in span
 	MLink	*freelist;	// list of free objects
@@ -342,6 +341,7 @@ struct MCentral
 void	runtime·MCentral_Init(MCentral *c, int32 sizeclass);
 int32	runtime·MCentral_AllocList(MCentral *c, int32 n, MLink **first);
 void	runtime·MCentral_FreeList(MCentral *c, int32 n, MLink *first);
+void	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *end);
 
 // Main malloc heap.
 // The heap itself is the "free[]" and "large" arrays,
@@ -351,7 +351,9 @@ struct MHeap
 	Lock;
 	MSpan free[MaxMHeapList];	// free lists of given length
 	MSpan large;			// free lists length >= MaxMHeapList
-	MSpan *allspans;
+	MSpan **allspans;
+	uint32	nspan;
+	uint32	nspancap;
 
 	// span lookup
 	MSpan *map[1<<MHeapMap_Bits];
@@ -378,7 +380,7 @@ struct MHeap
 extern MHeap runtime·mheap;
 
 void	runtime·MHeap_Init(MHeap *h, void *(*allocator)(uintptr));
-MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct);
+MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32 zeroed);
 void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
 MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);
 MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
@@ -399,7 +401,7 @@ void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
 void	runtime·unmarkspan(void *v, uintptr size);
 bool	runtime·blockspecial(void*);
 void	runtime·setblockspecial(void*, bool);
-void	runtime·purgecachedstats(M*);
+void	runtime·purgecachedstats(MCache*);
 
 enum
 {
@@ -412,7 +414,8 @@ enum
 void	runtime·MProf_Malloc(void*, uintptr);
 void	runtime·MProf_Free(void*, uintptr);
 void	runtime·MProf_GC(void);
-int32	runtime·helpgc(bool*);
+int32	runtime·gcprocs(void);
+void	runtime·helpgc(int32 nproc);
 void	runtime·gchelper(void);
 
 bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret);

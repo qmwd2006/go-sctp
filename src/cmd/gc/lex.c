@@ -187,7 +187,7 @@ int
 main(int argc, char *argv[])
 {
 	int i, c;
-	NodeList *l, *batch;
+	NodeList *l;
 	char *p;
 
 #ifdef	SIGBUS	
@@ -203,6 +203,10 @@ main(int argc, char *argv[])
 	gostringpkg = mkpkg(strlit("go.string"));
 	gostringpkg->name = "go.string";
 	gostringpkg->prefix = "go.string";	// not go%2estring
+
+	itabpkg = mkpkg(strlit("go.itab"));
+	itabpkg->name = "go.itab";
+	itabpkg->prefix = "go.itab";	// not go%2eitab
 
 	runtimepkg = mkpkg(strlit("runtime"));
 	runtimepkg->name = "runtime";
@@ -335,6 +339,7 @@ main(int argc, char *argv[])
 		frame(1);
 
 	// Process top-level declarations in phases.
+
 	// Phase 1: const, type, and names and types of funcs.
 	//   This will gather all the information about types
 	//   and methods but doesn't depend on any of it.
@@ -367,7 +372,7 @@ main(int argc, char *argv[])
 		errorexit();
 
 	// Phase 4: Inlining
-	if (debug['l'] > 1) {
+	if(debug['l'] > 1) {
 		// Typecheck imported function bodies if debug['l'] > 1,
 		// otherwise lazily when used or re-exported.
 		for(l=importlist; l; l=l->next)
@@ -380,7 +385,7 @@ main(int argc, char *argv[])
 			errorexit();
 	}
 
-	if (debug['l']) {
+	if(debug['l']) {
 		// Find functions that can be inlined and clone them before walk expands them.
 		for(l=xtop; l; l=l->next)
 			if(l->n->op == ODCLFUNC)
@@ -392,7 +397,7 @@ main(int argc, char *argv[])
 				inlcalls(l->n);
 	}
 
-	// Phase 5: escape analysis.
+	// Phase 5: Escape analysis.
 	if(!debug['N'])
 		escapes(xtop);
 
@@ -404,21 +409,7 @@ main(int argc, char *argv[])
 	if(nsavederrors+nerrors == 0)
 		fninit(xtop);
 
-	// Phase 6b: Compile all closures.
-	// Can generate more closures, so run in batches.
-	while(closures) {
-		batch = closures;
-		closures = nil;
-		if(debug['l'])
-			for(l=batch; l; l=l->next)
-				inlcalls(l->n);
-		if(!debug['N'])
-			escapes(batch);
-		for(l=batch; l; l=l->next)
-			funccompile(l->n, 1);
-	}
-
-	// Phase 7: check external declarations.
+	// Phase 7: Check external declarations.
 	for(l=externdcl; l; l=l->next)
 		if(l->n->op == ONAME)
 			typecheck(&l->n, Erv);
@@ -982,6 +973,7 @@ l0:
 		c1 = getc();
 		if(c1 == '=') {
 			c = LCOLAS;
+			yylval.i = lexlineno;
 			goto lx;
 		}
 		break;
@@ -1270,6 +1262,8 @@ tnum:
 				continue;
 			if(cp == lexbuf+2)
 				yyerror("malformed hex constant");
+			if(c == 'p')
+				goto casep;
 			goto ncu;
 		}
 	}
@@ -1530,9 +1524,7 @@ getc(void)
 	if(c != 0) {
 		curio.peekc = curio.peekc1;
 		curio.peekc1 = 0;
-		if(c == '\n' && pushedio.bin == nil)
-			lexlineno++;
-		return c;
+		goto check;
 	}
 	
 	if(curio.bin == nil) {
@@ -1542,6 +1534,7 @@ getc(void)
 	} else
 		c = Bgetc(curio.bin);
 
+check:
 	switch(c) {
 	case 0:
 		if(curio.bin != nil) {

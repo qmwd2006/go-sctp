@@ -28,7 +28,7 @@ type parser struct {
 	// Tracing/debugging
 	mode   Mode // parsing mode
 	trace  bool // == (mode & Trace != 0)
-	indent uint // indentation used for tracing output
+	indent int  // indentation used for tracing output
 
 	// Comments
 	comments    []*ast.CommentGroup
@@ -56,7 +56,7 @@ type parser struct {
 	unresolved []*ast.Ident      // unresolved identifiers
 	imports    []*ast.ImportSpec // list of imports
 
-	// Label scope
+	// Label scopes
 	// (maintained by open/close LabelScope)
 	labelScope  *ast.Scope     // label scope for current function
 	targetStack [][]*ast.Ident // stack of unresolved labels
@@ -75,14 +75,6 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mod
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
 
 	p.next()
-
-	// set up the pkgScope here (as opposed to in parseFile) because
-	// there are other parser entry points (ParseExpr, etc.)
-	p.openScope()
-	p.pkgScope = p.topScope
-
-	// for the same reason, set up a label scope
-	p.openLabelScope()
 }
 
 // ----------------------------------------------------------------------------
@@ -199,15 +191,16 @@ func (p *parser) resolve(x ast.Expr) {
 // Parsing support
 
 func (p *parser) printTrace(a ...interface{}) {
-	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . " +
-		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
-	const n = uint(len(dots))
+	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
+	const n = len(dots)
 	pos := p.file.Position(p.pos)
 	fmt.Printf("%5d:%3d: ", pos.Line, pos.Column)
 	i := 2 * p.indent
-	for ; i > n; i -= n {
+	for i > n {
 		fmt.Print(dots)
+		i -= n
 	}
+	// i <= n
 	fmt.Print(dots[0:i])
 	fmt.Println(a...)
 }
@@ -218,7 +211,7 @@ func trace(p *parser, msg string) *parser {
 	return p
 }
 
-// Usage pattern: defer un(trace(p, "..."));
+// Usage pattern: defer un(trace(p, "..."))
 func un(p *parser) {
 	p.indent--
 	p.printTrace(")")
@@ -304,14 +297,14 @@ func (p *parser) consumeCommentGroup(n int) (comments *ast.CommentGroup, endline
 func (p *parser) next() {
 	p.leadComment = nil
 	p.lineComment = nil
-	line := p.file.Line(p.pos) // current line
+	prev := p.pos
 	p.next0()
 
 	if p.tok == token.COMMENT {
 		var comment *ast.CommentGroup
 		var endline int
 
-		if p.file.Line(p.pos) == line {
+		if p.file.Line(p.pos) == p.file.Line(prev) {
 			// The comment is on same line as the previous token; it
 			// cannot be a lead comment but may be a line comment.
 			comment, endline = p.consumeCommentGroup(0)
@@ -2292,6 +2285,12 @@ func (p *parser) parseFile() *ast.File {
 		defer un(trace(p, "File"))
 	}
 
+	// Don't bother parsing the rest if we had errors scanning the first token.
+	// Likely not a Go source file at all.
+	if p.errors.Len() != 0 {
+		return nil
+	}
+
 	// package clause
 	doc := p.leadComment
 	pos := p.expect(token.PACKAGE)
@@ -2303,12 +2302,16 @@ func (p *parser) parseFile() *ast.File {
 	}
 	p.expectSemi()
 
-	var decls []ast.Decl
-
-	// Don't bother parsing the rest if we had errors already.
+	// Don't bother parsing the rest if we had errors parsing the package clause.
 	// Likely not a Go source file at all.
+	if p.errors.Len() != 0 {
+		return nil
+	}
 
-	if p.errors.Len() == 0 && p.mode&PackageClauseOnly == 0 {
+	p.openScope()
+	p.pkgScope = p.topScope
+	var decls []ast.Decl
+	if p.mode&PackageClauseOnly == 0 {
 		// import decls
 		for p.tok == token.IMPORT {
 			decls = append(decls, p.parseGenDecl(token.IMPORT, parseImportSpec))
@@ -2321,8 +2324,9 @@ func (p *parser) parseFile() *ast.File {
 			}
 		}
 	}
-
-	assert(p.topScope == p.pkgScope, "imbalanced scopes")
+	p.closeScope()
+	assert(p.topScope == nil, "unbalanced scopes")
+	assert(p.labelScope == nil, "unbalanced label scopes")
 
 	// resolve global identifiers within the same file
 	i := 0

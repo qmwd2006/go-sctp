@@ -44,6 +44,7 @@ const (
 	NodeIdentifier                 // An identifier; always a function name.
 	NodeIf                         // An if action.
 	NodeList                       // A list of Nodes.
+	NodeNil                        // An untyped nil constant.
 	NodeNumber                     // A numerical constant.
 	NodePipe                       // A pipeline of commands.
 	NodeRange                      // A range action.
@@ -208,6 +209,10 @@ func (c *CommandNode) String() string {
 		if i > 0 {
 			s += " "
 		}
+		if arg, ok := arg.(*PipeNode); ok {
+			s += "(" + arg.String() + ")"
+			continue
+		}
 		s += arg.String()
 	}
 	return s
@@ -286,6 +291,26 @@ func (d *DotNode) String() string {
 
 func (d *DotNode) Copy() Node {
 	return newDot()
+}
+
+// NilNode holds the special identifier 'nil' representing an untyped nil constant.
+// It is represented by a nil pointer.
+type NilNode bool
+
+func newNil() *NilNode {
+	return nil
+}
+
+func (d *NilNode) Type() NodeType {
+	return NodeNil
+}
+
+func (d *NilNode) String() string {
+	return "nil"
+}
+
+func (d *NilNode) Copy() Node {
+	return newNil()
 }
 
 // FieldNode holds a field (identifier starting with '.').

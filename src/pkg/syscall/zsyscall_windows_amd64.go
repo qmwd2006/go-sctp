@@ -103,11 +103,13 @@ var (
 	procRegQueryInfoKeyW                 = modadvapi32.NewProc("RegQueryInfoKeyW")
 	procRegEnumKeyExW                    = modadvapi32.NewProc("RegEnumKeyExW")
 	procRegQueryValueExW                 = modadvapi32.NewProc("RegQueryValueExW")
+	procGetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
 	procWSAStartup                       = modws2_32.NewProc("WSAStartup")
 	procWSACleanup                       = modws2_32.NewProc("WSACleanup")
 	procWSAIoctl                         = modws2_32.NewProc("WSAIoctl")
 	procsocket                           = modws2_32.NewProc("socket")
 	procsetsockopt                       = modws2_32.NewProc("setsockopt")
+	procgetsockopt                       = modws2_32.NewProc("getsockopt")
 	procbind                             = modws2_32.NewProc("bind")
 	procconnect                          = modws2_32.NewProc("connect")
 	procgetsockname                      = modws2_32.NewProc("getsockname")
@@ -154,7 +156,12 @@ func GetLastError() (lasterr error) {
 }
 
 func LoadLibrary(libname string) (handle Handle, err error) {
-	r0, _, e1 := Syscall(procLoadLibraryW.Addr(), 1, uintptr(unsafe.Pointer(StringToUTF16Ptr(libname))), 0, 0)
+	var _p0 *uint16
+	_p0, err = UTF16PtrFromString(libname)
+	if err != nil {
+		return
+	}
+	r0, _, e1 := Syscall(procLoadLibraryW.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0)
 	handle = Handle(r0)
 	if handle == 0 {
 		if e1 != 0 {
@@ -179,7 +186,12 @@ func FreeLibrary(handle Handle) (err error) {
 }
 
 func GetProcAddress(module Handle, procname string) (proc uintptr, err error) {
-	r0, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
+	var _p0 *byte
+	_p0, err = BytePtrFromString(procname)
+	if err != nil {
+		return
+	}
+	r0, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(_p0)), 0)
 	proc = uintptr(r0)
 	if proc == 0 {
 		if e1 != 0 {
@@ -1180,6 +1192,12 @@ func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32
 	return
 }
 
+func getCurrentProcessId() (pid uint32) {
+	r0, _, _ := Syscall(procGetCurrentProcessId.Addr(), 0, 0, 0, 0)
+	pid = uint32(r0)
+	return
+}
+
 func WSAStartup(verreq uint32, data *WSAData) (sockerr error) {
 	r0, _, _ := Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
 	if r0 != 0 {
@@ -1227,6 +1245,18 @@ func socket(af int32, typ int32, protocol int32) (handle Handle, err error) {
 
 func Setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (err error) {
 	r1, _, e1 := Syscall6(procsetsockopt.Addr(), 5, uintptr(s), uintptr(level), uintptr(optname), uintptr(unsafe.Pointer(optval)), uintptr(optlen), 0)
+	if int(r1) == -1 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return
+}
+
+func Getsockopt(s Handle, level int32, optname int32, optval *byte, optlen *int32) (err error) {
+	r1, _, e1 := Syscall6(procgetsockopt.Addr(), 5, uintptr(s), uintptr(level), uintptr(optname), uintptr(unsafe.Pointer(optval)), uintptr(unsafe.Pointer(optlen)), 0)
 	if int(r1) == -1 {
 		if e1 != 0 {
 			err = error(e1)
@@ -1387,7 +1417,12 @@ func WSASendTo(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32
 }
 
 func GetHostByName(name string) (h *Hostent, err error) {
-	r0, _, e1 := Syscall(procgethostbyname.Addr(), 1, uintptr(unsafe.Pointer(StringBytePtr(name))), 0, 0)
+	var _p0 *byte
+	_p0, err = BytePtrFromString(name)
+	if err != nil {
+		return
+	}
+	r0, _, e1 := Syscall(procgethostbyname.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0)
 	h = (*Hostent)(unsafe.Pointer(r0))
 	if h == nil {
 		if e1 != 0 {
@@ -1400,7 +1435,17 @@ func GetHostByName(name string) (h *Hostent, err error) {
 }
 
 func GetServByName(name string, proto string) (s *Servent, err error) {
-	r0, _, e1 := Syscall(procgetservbyname.Addr(), 2, uintptr(unsafe.Pointer(StringBytePtr(name))), uintptr(unsafe.Pointer(StringBytePtr(proto))), 0)
+	var _p0 *byte
+	_p0, err = BytePtrFromString(name)
+	if err != nil {
+		return
+	}
+	var _p1 *byte
+	_p1, err = BytePtrFromString(proto)
+	if err != nil {
+		return
+	}
+	r0, _, e1 := Syscall(procgetservbyname.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), 0)
 	s = (*Servent)(unsafe.Pointer(r0))
 	if s == nil {
 		if e1 != 0 {
@@ -1419,7 +1464,12 @@ func Ntohs(netshort uint16) (u uint16) {
 }
 
 func GetProtoByName(name string) (p *Protoent, err error) {
-	r0, _, e1 := Syscall(procgetprotobyname.Addr(), 1, uintptr(unsafe.Pointer(StringBytePtr(name))), 0, 0)
+	var _p0 *byte
+	_p0, err = BytePtrFromString(name)
+	if err != nil {
+		return
+	}
+	r0, _, e1 := Syscall(procgetprotobyname.Addr(), 1, uintptr(unsafe.Pointer(_p0)), 0, 0)
 	p = (*Protoent)(unsafe.Pointer(r0))
 	if p == nil {
 		if e1 != 0 {
@@ -1432,7 +1482,12 @@ func GetProtoByName(name string) (p *Protoent, err error) {
 }
 
 func DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status error) {
-	r0, _, _ := Syscall6(procDnsQuery_W.Addr(), 6, uintptr(unsafe.Pointer(StringToUTF16Ptr(name))), uintptr(qtype), uintptr(options), uintptr(unsafe.Pointer(extra)), uintptr(unsafe.Pointer(qrs)), uintptr(unsafe.Pointer(pr)))
+	var _p0 *uint16
+	_p0, status = UTF16PtrFromString(name)
+	if status != nil {
+		return
+	}
+	r0, _, _ := Syscall6(procDnsQuery_W.Addr(), 6, uintptr(unsafe.Pointer(_p0)), uintptr(qtype), uintptr(options), uintptr(unsafe.Pointer(extra)), uintptr(unsafe.Pointer(qrs)), uintptr(unsafe.Pointer(pr)))
 	if r0 != 0 {
 		status = Errno(r0)
 	}

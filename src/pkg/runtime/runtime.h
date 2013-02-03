@@ -69,8 +69,13 @@ typedef	struct	Hchan		Hchan;
 typedef	struct	Complex64	Complex64;
 typedef	struct	Complex128	Complex128;
 typedef	struct	WinCall		WinCall;
+typedef	struct	SEH		SEH;
 typedef	struct	Timers		Timers;
 typedef	struct	Timer		Timer;
+typedef struct	GCStats		GCStats;
+typedef struct	LFNode		LFNode;
+typedef struct	ParFor		ParFor;
+typedef struct	ParForThread	ParForThread;
 
 /*
  * per-cpu declaration.
@@ -162,21 +167,31 @@ struct	Slice
 struct	Gobuf
 {
 	// The offsets of these fields are known to (hard-coded in) libmach.
-	byte*	sp;
+	uintptr	sp;
 	byte*	pc;
 	G*	g;
 };
+struct	GCStats
+{
+	// the struct must consist of only uint64's,
+	// because it is casted to uint64[].
+	uint64	nhandoff;
+	uint64	nhandoffcnt;
+	uint64	nprocyield;
+	uint64	nosyield;
+	uint64	nsleep;
+};
 struct	G
 {
-	byte*	stackguard;	// cannot move - also known to linker, libmach, runtime/cgo
-	byte*	stackbase;	// cannot move - also known to libmach, runtime/cgo
+	uintptr	stackguard;	// cannot move - also known to linker, libmach, runtime/cgo
+	uintptr	stackbase;	// cannot move - also known to libmach, runtime/cgo
 	Defer*	defer;
 	Panic*	panic;
 	Gobuf	sched;
-	byte*	gcstack;		// if status==Gsyscall, gcstack = stackbase to use during gc
-	byte*	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
-	byte*	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
-	byte*	stack0;
+	uintptr	gcstack;		// if status==Gsyscall, gcstack = stackbase to use during gc
+	uintptr	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
+	uintptr	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
+	uintptr	stack0;
 	byte*	entry;		// initial function
 	G*	alllink;	// on allg
 	void*	param;		// passed parameter on wakeup
@@ -243,10 +258,12 @@ struct	M
 	uintptr	waitsema;	// semaphore for parking on locks
 	uint32	waitsemacount;
 	uint32	waitsemalock;
+	GCStats	gcstats;
 
 #ifdef GOOS_windows
 	void*	thread;		// thread handle
 #endif
+	SEH*	seh;
 	uintptr	end[];
 };
 
@@ -301,6 +318,11 @@ struct	WinCall
 	uintptr	r2;
 	uintptr	err;	// error number
 };
+struct	SEH
+{
+	void*	prev;
+	void*	handler;
+};
 
 #ifdef GOOS_windows
 enum {
@@ -339,6 +361,34 @@ struct	Timer
 	Eface	arg;
 };
 
+// Lock-free stack node.
+struct LFNode
+{
+	LFNode	*next;
+	uintptr	pushcnt;
+};
+
+// Parallel for descriptor.
+struct ParFor
+{
+	void (*body)(ParFor*, uint32);	// executed for each element
+	uint32 done;			// number of idle threads
+	uint32 nthr;			// total number of threads
+	uint32 nthrmax;			// maximum number of threads
+	uint32 thrseq;			// thread id sequencer
+	uint32 cnt;			// iteration space [0, cnt)
+	void *ctx;			// arbitrary user context
+	bool wait;			// if true, wait while all threads finish processing,
+					// otherwise parfor may return while other threads are still working
+	ParForThread *thr;		// array of thread descriptors
+	// stats
+	uint64 nsteal;
+	uint64 nstealcnt;
+	uint64 nprocyield;
+	uint64 nosyield;
+	uint64 nsleep;
+};
+
 /*
  * defined macros
  *    you need super-gopher-guru privilege
@@ -347,6 +397,7 @@ struct	Timer
 #define	nelem(x)	(sizeof(x)/sizeof((x)[0]))
 #define	nil		((void*)0)
 #define	offsetof(s,m)	(uint32)(&(((s*)0)->m))
+#define	ROUND(x, n)	(((x)+(n)-1)&~((n)-1)) /* all-caps to mark as macro: it evaluates n twice */
 
 /*
  * known to compiler
@@ -435,7 +486,7 @@ struct Defer
 	byte*	pc;
 	byte*	fn;
 	Defer*	link;
-	byte	args[8];	// padded to actual size
+	void*	args[1];	// padded to actual size
 };
 
 /*
@@ -490,7 +541,6 @@ void	runtime·goenvs_unix(void);
 void*	runtime·getu(void);
 void	runtime·throw(int8*);
 void	runtime·panicstring(int8*);
-uint32	runtime·rnd(uint32, uint32);
 void	runtime·prints(int8*);
 void	runtime·printf(int8*, ...);
 byte*	runtime·mchr(byte*, byte, byte*);
@@ -512,13 +562,17 @@ void	runtime·tracebackothers(G*);
 int32	runtime·write(int32, void*, int32);
 int32	runtime·mincore(void*, uintptr, byte*);
 bool	runtime·cas(uint32*, uint32, uint32);
+bool	runtime·cas64(uint64*, uint64*, uint64);
 bool	runtime·casp(void**, void*, void*);
 // Don't confuse with XADD x86 instruction,
 // this one is actually 'addx', that is, add-and-fetch.
 uint32	runtime·xadd(uint32 volatile*, int32);
+uint64	runtime·xadd64(uint64 volatile*, int64);
 uint32	runtime·xchg(uint32 volatile*, uint32);
 uint32	runtime·atomicload(uint32 volatile*);
 void	runtime·atomicstore(uint32 volatile*, uint32);
+void	runtime·atomicstore64(uint64 volatile*, uint64);
+uint64	runtime·atomicload64(uint64 volatile*);
 void*	runtime·atomicloadp(void* volatile*);
 void	runtime·atomicstorep(void* volatile*, void*);
 void	runtime·jmpdefer(byte*, void*);
@@ -536,6 +590,7 @@ int32	runtime·funcline(Func*, uintptr);
 void*	runtime·stackalloc(uint32);
 void	runtime·stackfree(void*, uintptr);
 MCache*	runtime·allocmcache(void);
+void	runtime·freemcache(MCache*);
 void	runtime·mallocinit(void);
 bool	runtime·ifaceeq_c(Iface, Iface);
 bool	runtime·efaceeq_c(Eface, Eface);
@@ -567,6 +622,7 @@ int32	runtime·gentraceback(byte*, byte*, byte*, G*, int32, uintptr*, int32);
 int64	runtime·nanotime(void);
 void	runtime·dopanic(int32);
 void	runtime·startpanic(void);
+void	runtime·unwindstack(G*, byte*);
 void	runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp);
 void	runtime·resetcpuprofiler(int32);
 void	runtime·setcpuprofilerate(void(*)(uintptr*, int32), int32);
@@ -589,7 +645,7 @@ int64	runtime·cputicks(void);
 #pragma	varargck	type	"S"	String
 
 void	runtime·stoptheworld(void);
-void	runtime·starttheworld(bool);
+void	runtime·starttheworld(void);
 extern uint32 runtime·worldsema;
 
 /*
@@ -634,6 +690,27 @@ void	runtime·semawakeup(M*);
 // or
 void	runtime·futexsleep(uint32*, uint32, int64);
 void	runtime·futexwakeup(uint32*, uint32);
+
+/*
+ * Lock-free stack.
+ * Initialize uint64 head to 0, compare with 0 to test for emptiness.
+ * The stack does not keep pointers to nodes,
+ * so they can be garbage collected if there are no other pointers to nodes.
+ */
+void	runtime·lfstackpush(uint64 *head, LFNode *node);
+LFNode*	runtime·lfstackpop(uint64 *head);
+
+/*
+ * Parallel for over [0, n).
+ * body() is executed for each iteration.
+ * nthr - total number of worker threads.
+ * ctx - arbitrary user context.
+ * if wait=true, threads return from parfor() when all work is done;
+ * otherwise, threads can return while other threads are still finishing processing.
+ */
+ParFor*	runtime·parforalloc(uint32 nthrmax);
+void	runtime·parforsetup(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait, void (*body)(ParFor*, uint32));
+void	runtime·parfordo(ParFor *desc);
 
 /*
  * This is consistent across Linux and BSD.
@@ -738,3 +815,12 @@ uintptr	runtime·memlimit(void);
 // is forced to deliver the signal to a thread that's actually running.
 // This is a no-op on other systems.
 void	runtime·setprof(bool);
+
+// float.c
+extern float64 runtime·nan;
+extern float64 runtime·posinf;
+extern float64 runtime·neginf;
+extern uint64 ·nan;
+extern uint64 ·posinf;
+extern uint64 ·neginf;
+#define ISNAN(f) ((f) != (f))

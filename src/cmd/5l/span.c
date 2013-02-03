@@ -90,6 +90,7 @@ span(void)
 	int32 c, otxt, out[6];
 	Section *sect;
 	uchar *bp;
+	Sym *sub;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f span\n", cputime());
@@ -100,6 +101,20 @@ span(void)
 	otxt = c;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		p = cursym->text;
+		if(p == P || p->link == P) { // handle external functions and ELF section symbols
+			if(cursym->type & SSUB)
+				continue;
+			if(cursym->align != 0)
+				c = rnd(c, cursym->align);
+			cursym->value = 0;
+			for(sub = cursym; sub != S; sub = sub->sub) {
+				sub->value += c;
+				for(p = sub->text; p != P; p = p->link)
+					p->pc += sub->value;
+			}
+			c += cursym->size;
+			continue;
+		}
 		p->pc = c;
 		cursym->value = c;
 
@@ -160,6 +175,8 @@ span(void)
 		bflag = 0;
 		c = INITTEXT;
 		for(cursym = textp; cursym != nil; cursym = cursym->next) {
+			if(!cursym->text || !cursym->text->link)
+				continue;
 			cursym->value = c;
 			for(p = cursym->text; p != P; p = p->link) {
 				curp = p;
@@ -217,6 +234,8 @@ span(void)
 	 */
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		p = cursym->text;
+		if(p == P || p->link == P)
+		       continue;
 		autosize = p->to.offset + 4;
 		symgrow(cursym, cursym->size);
 	
@@ -269,12 +288,20 @@ flushpool(Prog *p, int skip, int force)
 			q->to.type = D_BRANCH;
 			q->cond = p->link;
 			q->link = blitrl;
+			q->line = p->line;
 			blitrl = q;
 		}
 		else if(!force && (p->pc+pool.size-pool.start < 2048))
 			return 0;
 		elitrl->link = p->link;
 		p->link = blitrl;
+		// BUG(minux): how to correctly handle line number for constant pool entries?
+		// for now, we set line number to the last instruction preceding them at least
+		// this won't bloat the .debug_line tables
+		while(blitrl) {
+			blitrl->line = p->line;
+			blitrl = blitrl->link;
+		}
 		blitrl = 0;	/* BUG: should refer back to values until out-of-range */
 		elitrl = 0;
 		pool.size = 0;
@@ -407,25 +434,9 @@ immhalf(int32 v)
 int32
 symaddr(Sym *s)
 {
-	int32 v;
-
-	v = s->value;
-	switch(s->type) {
-	default:
-		diag("unexpected type %d in symaddr(%s)", s->type, s->name);
-		return 0;
-	
-	case STEXT:
-	case SELFROSECT:
-	case SRODATA:
-	case SDATA:
-	case SBSS:
-	case SCONST:
-	case SNOPTRDATA:
-	case SNOPTRBSS:
-		break;
-	}
-	return v;
+	if(!s->reachable)
+		diag("unreachable symbol in symaddr - %s", s->name);
+	return s->value;
 }
 
 int
@@ -443,6 +454,9 @@ aclass(Adr *a)
 
 	case D_REGREG:
 		return C_REGREG;
+
+	case D_REGREG2:
+		return C_REGREG2;
 
 	case D_SHIFT:
 		return C_SHIFT;
@@ -813,6 +827,8 @@ buildop(void)
 			oprange[ASQRTD] = oprange[r];
 			oprange[AMOVFD] = oprange[r];
 			oprange[AMOVDF] = oprange[r];
+			oprange[AABSF] = oprange[r];
+			oprange[AABSD] = oprange[r];
 			break;
 
 		case ACMPF:
@@ -832,17 +848,28 @@ buildop(void)
 			break;
 
 		case AMULL:
-			oprange[AMULA] = oprange[r];
 			oprange[AMULAL] = oprange[r];
 			oprange[AMULLU] = oprange[r];
 			oprange[AMULALU] = oprange[r];
 			break;
 
+		case AMULWT:
+			oprange[AMULWB] = oprange[r];
+			break;
+
+		case AMULAWT:
+			oprange[AMULAWB] = oprange[r];
+			break;
+
+		case AMULA:
 		case ALDREX:
 		case ASTREX:
 		case ALDREXD:
 		case ASTREXD:
 		case ATST:
+		case APLD:
+		case AUNDEF:
+		case ACLZ:
 			break;
 		}
 	}

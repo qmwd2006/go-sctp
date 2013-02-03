@@ -1,5 +1,5 @@
 // Inferno utils/5c/peep.c
-// http://code.google.com/p/inferno-os/source/browse/utils/5g/peep.c
+// http://code.google.com/p/inferno-os/source/browse/utils/5c/peep.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -1213,7 +1213,7 @@ copyau(Adr *a, Adr *v)
 			if(a->reg == v->reg)
 				return 1;
 		} else
-		if(a->type == D_REGREG) {
+		if(a->type == D_REGREG || a->type == D_REGREG2) {
 			if(a->reg == v->reg)
 				return 1;
 			if(a->offset == v->reg)
@@ -1276,7 +1276,7 @@ copysub(Adr *a, Adr *v, Adr *s, int f)
 			if((a->offset&(1<<4)) && (a->offset>>8) == v->reg)
 				a->offset = (a->offset&~(0xf<<8))|(s->reg<<8);
 		} else
-		if(a->type == D_REGREG) {
+		if(a->type == D_REGREG || a->type == D_REGREG2) {
 			if(a->offset == v->reg)
 				a->offset = s->reg;
 			if(a->reg == v->reg)

@@ -585,8 +585,12 @@ func (p *pp) fmtBytes(v []byte, verb rune, goSyntax bool, depth int) {
 }
 
 func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
+	use0x64 := true
 	switch verb {
-	case 'p', 'v', 'b', 'd', 'o', 'x', 'X':
+	case 'p', 'v':
+		// ok
+	case 'b', 'd', 'o', 'x', 'X':
+		use0x64 = false
 		// ok
 	default:
 		p.badVerb(verb)
@@ -616,7 +620,11 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
 	} else if verb == 'v' && u == 0 {
 		p.buf.Write(nilAngleBytes)
 	} else {
-		p.fmt0x64(uint64(u), !p.fmt.sharp)
+		if use0x64 {
+			p.fmt0x64(uint64(u), !p.fmt.sharp)
+		} else {
+			p.fmtUint64(uint64(u), verb, false)
+		}
 	}
 }
 
@@ -712,6 +720,9 @@ func (p *pp) handleMethods(verb rune, plus, goSyntax bool, depth int) (wasString
 }
 
 func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth int) (wasString bool) {
+	p.field = field
+	p.value = reflect.Value{}
+
 	if field == nil {
 		if verb == 'T' || verb == 'v' {
 			p.buf.Write(nilAngleBytes)
@@ -721,8 +732,6 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
 		return false
 	}
 
-	p.field = field
-	p.value = reflect.Value{}
 	// Special processing considerations.
 	// %T (the value's type) and %p (its address) are special; we always do them first.
 	switch verb {
@@ -734,8 +743,17 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
 		return false
 	}
 
-	if wasString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
-		return wasString
+	// Clear flags for base formatters.
+	// handleMethods needs them, so we must restore them later.
+	// We could call handleMethods here and avoid this work, but
+	// handleMethods is expensive enough to be worth delaying.
+	oldPlus := p.fmt.plus
+	oldSharp := p.fmt.sharp
+	if plus {
+		p.fmt.plus = false
+	}
+	if goSyntax {
+		p.fmt.sharp = false
 	}
 
 	// Some types can be done without reflection.
@@ -779,6 +797,13 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
 		p.fmtBytes(f, verb, goSyntax, depth)
 		wasString = verb == 's'
 	default:
+		// Restore flags in case handleMethods finds a Formatter.
+		p.fmt.plus = oldPlus
+		p.fmt.sharp = oldSharp
+		// If the type is not simple, it might have methods.
+		if wasString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
+			return wasString
+		}
 		// Need to use reflection
 		return p.printReflectValue(reflect.ValueOf(field), verb, plus, goSyntax, depth)
 	}

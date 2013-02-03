@@ -242,6 +242,11 @@ uchar	ypopl[] =
 	Ynone,	Ym,	Zo_m,	2,
 	0
 };
+uchar	ybswap[] =
+{
+	Ynone,	Yrl,	Z_rp,	1,
+	0,
+};
 uchar	yscond[] =
 {
 	Ynone,	Ymb,	Zo_m,	2,
@@ -249,7 +254,9 @@ uchar	yscond[] =
 };
 uchar	yjcond[] =
 {
-	Ynone,	Ybr,	Zbr,	1,
+	Ynone,	Ybr,	Zbr,	0,
+	Yi0,	Ybr,	Zbr,	0,
+	Yi1,	Ybr,	Zbr,	1,
 	0
 };
 uchar	yloop[] =
@@ -348,6 +355,11 @@ uchar	ysvrs[] =
 	Ynone,	Ym,	Zo_m,	2,
 	Ym,	Ynone,	Zm_o,	2,
 	0
+};
+uchar	yprefetch[] =
+{
+	Ym,	Ynone,	Zm_o,	2,
+	0,
 };
 
 Optab optab[] =
@@ -760,6 +772,15 @@ Optab optab[] =
 	{ ASFENCE, ynone, Pm, 0xae,0xf8 },
 
 	{ AEMMS, ynone, Pm, 0x77 },
+
+	{ APREFETCHT0,	yprefetch,	Pm,	0x18,(01) },
+	{ APREFETCHT1,	yprefetch,	Pm,	0x18,(02) },
+	{ APREFETCHT2,	yprefetch,	Pm,	0x18,(03) },
+	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
+
+	{ ABSWAPL,	ybswap,	Pm,	0xc8 },
+	
+	{ AUNDEF,		ynone,	Px,	0x0f, 0x0b },
 
 	0
 };

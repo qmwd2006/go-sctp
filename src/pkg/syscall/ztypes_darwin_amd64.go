@@ -239,6 +239,40 @@ type Inet6Pktinfo struct {
 	Ifindex uint32
 }
 
+type SCTPInitMsg struct {
+	Num_ostreams   uint16
+	Max_instreams  uint16
+	Max_attempts   uint16
+	Max_init_timeo uint16
+}
+
+type SCTPSndInfo struct {
+	Sid      uint16
+	Flags    uint16
+	Ppid     uint32
+	Context  uint32
+	Assoc_id uint32
+}
+
+type SCTPRcvInfo struct {
+	Sid       uint16
+	Ssn       uint16
+	Flags     uint16
+	Pad_cgo_0 [2]byte
+	Ppid      uint32
+	Tsn       uint32
+	Cumtsn    uint32
+	Context   uint32
+	Assoc_id  uint32
+}
+
+type SCTPEvent struct {
+	Assoc_id  uint32
+	Type      uint16
+	On        uint8
+	Pad_cgo_0 [1]byte
+}
+
 const (
 	SizeofSockaddrInet4    = 0x10
 	SizeofSockaddrInet6    = 0x1c
@@ -251,6 +285,10 @@ const (
 	SizeofMsghdr           = 0x30
 	SizeofCmsghdr          = 0xc
 	SizeofInet6Pktinfo     = 0x14
+	SizeofSCTPSndInfo      = 0x10
+	SizeofSCTPRcvInfo      = 0x1c
+	SizeofSCTPInitMsg      = 0x8
+	SizeofSCTPEvent        = 0x8
 )
 
 const (
@@ -424,4 +462,15 @@ type BpfHdr struct {
 	Datalen   uint32
 	Hdrlen    uint16
 	Pad_cgo_0 [2]byte
+}
+
+type Termios struct {
+	Iflag     uint64
+	Oflag     uint64
+	Cflag     uint64
+	Lflag     uint64
+	Cc        [20]uint8
+	Pad_cgo_0 [4]byte
+	Ispeed    uint64
+	Ospeed    uint64
 }

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !plan9
+
 package net
 
 import (
@@ -534,5 +536,40 @@ func TestProhibitionaryDialArgs(t *testing.T) {
 			c.Close()
 			t.Fatalf("Dial(%q, %q) should fail", tt.net, tt.addr)
 		}
+	}
+}
+
+func TestWildWildcardListener(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Logf("skipping test on %q", runtime.GOOS)
+		return
+	}
+
+	if testing.Short() || !*testExternal {
+		t.Logf("skipping test to avoid external network")
+		return
+	}
+
+	defer func() {
+		if recover() != nil {
+			t.Fatalf("panicked")
+		}
+	}()
+
+	if ln, err := Listen("tcp", ""); err == nil {
+		ln.Close()
+	}
+	if ln, err := ListenPacket("udp", ""); err == nil {
+		ln.Close()
+	}
+	if ln, err := ListenTCP("tcp", nil); err == nil {
+		ln.Close()
+	}
+	if ln, err := ListenUDP("udp", nil); err == nil {
+		ln.Close()
+	}
+	if ln, err := ListenIP("ip:icmp", nil); err == nil {
+		ln.Close()
 	}
 }

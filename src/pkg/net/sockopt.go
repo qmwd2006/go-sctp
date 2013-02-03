@@ -144,22 +144,6 @@ func setDeadline(fd *netFD, t time.Time) error {
 	return setWriteDeadline(fd, t)
 }
 
-func setReuseAddr(fd *netFD, reuse bool) error {
-	if err := fd.incref(false); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse)))
-}
-
-func setDontRoute(fd *netFD, dontroute bool) error {
-	if err := fd.incref(false); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute)))
-}
-
 func setKeepAlive(fd *netFD, keepalive bool) error {
 	if err := fd.incref(false); err != nil {
 		return err
@@ -175,6 +159,15 @@ func setNoDelay(fd *netFD, noDelay bool) error {
 	defer fd.decref()
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay)))
 }
+
+func setReceiveReceiveInfo(fd *netFD, info bool) error {
+	if err := fd.incref(false); err != nil {
+		return err
+	}
+	defer fd.decref()
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_SCTP, syscall.SCTP_RECVRCVINFO, boolint(!info)))
+}
+
 
 func setLinger(fd *netFD, sec int) error {
 	var l syscall.Linger

@@ -36,6 +36,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
+	"go/printer"
 	"io"
 	"log"
 	"net/http"
@@ -73,9 +74,12 @@ var (
 )
 
 func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
-	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
 	w.WriteHeader(http.StatusNotFound)
-	servePage(w, relpath, "File "+relpath, "", "", contents)
+	servePage(w, Page{
+		Title:    "File " + relpath,
+		Subtitle: relpath,
+		Body:     applyTemplate(errorHTML, "errorHTML", err), // err may contain an absolute path!
+	})
 }
 
 func usage() {
@@ -369,13 +373,11 @@ func main() {
 		}
 		mode |= showSource
 	}
-	// TODO(gri): Provide a mechanism (flag?) to select a package
-	//            if there are multiple packages in a directory.
 
 	// first, try as package unless forced as command
 	var info PageInfo
 	if !forceCmd {
-		info = pkgHandler.getPageInfo(abspath, relpath, "", mode)
+		info = pkgHandler.getPageInfo(abspath, relpath, mode)
 	}
 
 	// second, try as command unless the path is absolute
@@ -383,7 +385,7 @@ func main() {
 	var cinfo PageInfo
 	if !filepath.IsAbs(path) {
 		abspath = pathpkg.Join(cmdHandler.fsRoot, path)
-		cinfo = cmdHandler.getPageInfo(abspath, relpath, "", mode)
+		cinfo = cmdHandler.getPageInfo(abspath, relpath, mode)
 	}
 
 	// determine what to use
@@ -421,20 +423,24 @@ func main() {
 		filter := func(s string) bool { return rx.MatchString(s) }
 		switch {
 		case info.PAst != nil:
+			cmap := ast.NewCommentMap(info.FSet, info.PAst, info.PAst.Comments)
 			ast.FilterFile(info.PAst, filter)
 			// Special case: Don't use templates for printing
 			// so we only get the filtered declarations without
 			// package clause or extra whitespace.
 			for i, d := range info.PAst.Decls {
+				// determine the comments associated with d only
+				comments := cmap.Filter(d).Comments()
+				cn := &printer.CommentedNode{Node: d, Comments: comments}
 				if i > 0 {
 					fmt.Println()
 				}
 				if *html {
 					var buf bytes.Buffer
-					writeNode(&buf, info.FSet, d)
+					writeNode(&buf, info.FSet, cn)
 					FormatText(os.Stdout, buf.Bytes(), -1, true, "", nil)
 				} else {
-					writeNode(os.Stdout, info.FSet, d)
+					writeNode(os.Stdout, info.FSet, cn)
 				}
 				fmt.Println()
 			}

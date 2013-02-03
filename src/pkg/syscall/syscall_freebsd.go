@@ -41,7 +41,10 @@ func nametomib(name string) (mib []_C_int, err error) {
 	n := uintptr(CTL_MAXNAME) * siz
 
 	p := (*byte)(unsafe.Pointer(&buf[0]))
-	bytes := StringByteSlice(name)
+	bytes, err := ByteSliceFromString(name)
+	if err != nil {
+		return nil, err
+	}
 
 	// Magic sysctl: "setting" 0.3 to a string name
 	// lets you read back the array of integers form.
@@ -87,11 +90,6 @@ func Pipe(p []int) (err error) {
 	}
 	p[0], p[1], err = pipe()
 	return
-}
-
-// TODO
-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
-	return -1, ENOSYS
 }
 
 func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, error) {
@@ -331,7 +329,6 @@ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
 // __pthread_canceled
 // __semwait_signal
 // Proc_info
-// Sendfile
 // Stat64_extended
 // Lstat64_extended
 // Fstat64_extended

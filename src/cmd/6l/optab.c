@@ -302,6 +302,11 @@ uchar	ypopl[] =
 	Ynone,	Ym,	Zo_m,	2,
 	0
 };
+uchar	ybswap[] =
+{
+	Ynone,	Yrl,	Z_rp,	2,
+	0,
+};
 uchar	yscond[] =
 {
 	Ynone,	Ymb,	Zo_m,	2,
@@ -309,7 +314,9 @@ uchar	yscond[] =
 };
 uchar	yjcond[] =
 {
-	Ynone,	Ybr,	Zbr,	1,
+	Ynone,	Ybr,	Zbr,	0,
+	Yi0,	Ybr,	Zbr,	0,
+	Yi1,	Ybr,	Zbr,	1,
 	0
 };
 uchar	yloop[] =
@@ -539,6 +546,11 @@ uchar	ycrc32l[] =
 {
 	Yml,	Yrl,	Zlitm_r,	0,
 };
+uchar	yprefetch[] =
+{
+	Ym,	Ynone,	Zm_o,	2,
+	0,
+};
 
 /*
  * You are doasm, holding in your hand a Prog* with p->as set to, say, ACRC32,
@@ -636,6 +648,8 @@ Optab optab[] =
 	{ ABSRL,	yml_rl,	Pm, 0xbd },
 	{ ABSRQ,	yml_rl,	Pw, 0x0f,0xbd },
 	{ ABSRW,	yml_rl,	Pq, 0xbd },
+	{ ABSWAPL,	ybswap,	Px, 0x0f,0xc8 },
+	{ ABSWAPQ,	ybswap,	Pw, 0x0f,0xc8 },
 	{ ABTCL,	ybtl,	Pm, 0xba,(07),0xbb },
 	{ ABTCQ,	ybtl,	Pw, 0x0f,0xba,(07),0x0f,0xbb },
 	{ ABTCW,	ybtl,	Pq, 0xba,(07),0xbb },
@@ -1270,8 +1284,17 @@ Optab optab[] =
 	{ AXADDQ,	yrl_ml,	Pw, 0x0f,0xc1 },
 	{ AXADDW,	yrl_ml,	Pe, 0x0f,0xc1 },
 
-	{ ACRC32B,       ycrc32l,Px, 0xf2,0x0f,0x38,0xf0,0},
-	{ ACRC32Q,       ycrc32l,Pw, 0xf2,0x0f,0x38,0xf1,0},
+	{ ACRC32B,       ycrc32l,Px, 0xf2,0x0f,0x38,0xf0,0 },
+	{ ACRC32Q,       ycrc32l,Pw, 0xf2,0x0f,0x38,0xf1,0 },
+	
+	{ APREFETCHT0,	yprefetch,	Pm,	0x18,(01) },
+	{ APREFETCHT1,	yprefetch,	Pm,	0x18,(02) },
+	{ APREFETCHT2,	yprefetch,	Pm,	0x18,(03) },
+	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
+	
+	{ AMOVQL,	yrl_ml,	Px, 0x89 },
+
+	{ AUNDEF,		ynone,	Px, 0x0f, 0x0b },
 
 	{ AEND },
 	0

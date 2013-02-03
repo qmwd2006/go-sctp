@@ -142,6 +142,11 @@ yyerror(char *fmt, ...)
 		if(debug['x'])	
 			print("yyerror: yystate=%d yychar=%d\n", yystate, yychar);
 
+		// An unexpected EOF caused a syntax error. Use the previous
+		// line number since getc generated a fake newline character.
+		if(curio.eofnl)
+			lexlineno = prevlineno;
+
 		// only one syntax error per line
 		if(lastsyntax == lexlineno)
 			return;
@@ -1214,7 +1219,7 @@ assignop(Type *src, Type *dst, char **why)
 		return 0;
 	}
 	if(src->etype == TINTER && dst->etype != TBLANK) {
-		if(why != nil)
+		if(why != nil && implements(dst, src, &missing, &have, &ptr))
 			*why = ": need type assertion";
 		return 0;
 	}
@@ -1379,6 +1384,7 @@ assignconv(Node *n, Type *t, char *context)
 	r->type = t;
 	r->typecheck = 1;
 	r->implicit = 1;
+	r->orig = n;
 	return r;
 }
 
@@ -2664,7 +2670,7 @@ genhash(Sym *sym, Type *t)
 		call->list = list(call->list, nh);
 		call->list = list(call->list, nodintconst(t->type->width));
 		nx = nod(OINDEX, np, ni);
-		nx->etype = 1;  // no bounds check
+		nx->bounded = 1;
 		na = nod(OADDR, nx, N);
 		na->etype = 1;  // no escape to heap
 		call->list = list(call->list, na);
@@ -2875,9 +2881,9 @@ geneq(Sym *sym, Type *t)
 		
 		// if p[i] != q[i] { *eq = false; return }
 		nx = nod(OINDEX, np, ni);
-		nx->etype = 1;  // no bounds check
+		nx->bounded = 1;
 		ny = nod(OINDEX, nq, ni);
-		ny->etype = 1;  // no bounds check
+		ny->bounded = 1;
 
 		nif = nod(OIF, N, N);
 		nif->ntest = nod(ONE, nx, ny);

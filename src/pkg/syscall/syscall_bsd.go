@@ -17,6 +17,7 @@ import (
 	"unsafe"
 )
 
+
 /*
  * Pseudo-system calls
  */
@@ -304,6 +305,14 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	if err != nil {
 		return
 	}
+	if runtime.GOOS == "darwin" && len == 0 {
+		// Accepted socket has no address.
+		// This is likely due to a bug in xnu kernels,
+		// where instead of ECONNABORTED error socket
+		// is accepted, but has no address.
+		Close(nfd)
+		return 0, nil, ECONNABORTED
+	}
 	sa, err = anyToSockaddr(&rsa)
 	if err != nil {
 		Close(nfd)
@@ -553,16 +562,7 @@ func Sysctl(name string) (value string, err error) {
 		return "", err
 	}
 	if n == 0 {
-		// TODO(jsing): Remove after OpenBSD 5.2 release.
-		// Work around a bug that was fixed after OpenBSD 5.0.
-		// The length for kern.hostname and kern.domainname is always
-		// returned as 0 when a nil value is passed for oldp.
-		if runtime.GOOS == "openbsd" && (name == "kern.hostname" || name == "kern.domainname") {
-			// MAXHOSTNAMELEN
-			n = 256
-		} else {
-			return "", nil
-		}
+		return "", nil
 	}
 
 	// Read into buffer of that size.
@@ -636,3 +636,96 @@ func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, e
 func Munmap(b []byte) (err error) {
 	return mapper.Munmap(b)
 }
+
+func SCTPSendmsg(fd int, p []byte, sinfo *SCTPSndInfo, to Sockaddr, flags int) (err error) {
+	var ptr uintptr
+	var salen _Socklen
+	if to != nil {
+		var err error
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return err
+		}
+	}
+	var msg Msghdr
+	msg.Name = (*byte)(unsafe.Pointer(ptr))
+	msg.Namelen = uint32(salen)
+	var iov Iovec
+	if len(p) > 0 {
+		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+		iov.SetLen(len(p))
+  }
+  var dummy byte
+  if len(p) == 0 {
+    iov.Base = &dummy
+    iov.SetLen(1)
+  }
+  controlBuffer := make([]byte, SizeofCmsghdr + SizeofSCTPSndInfo)
+
+  cdata := (controlBuffer[:])
+  var cmsg *Cmsghdr
+  cmsg = (*Cmsghdr)(unsafe.Pointer(&cdata[0]))
+  cmsg.Level = IPPROTO_SCTP
+  cmsg.Type = SCTP_SNDINFO;
+  cmsg.SetLen(CmsgLen(SizeofSCTPSndInfo))
+
+  var bsinfo *SCTPSndInfo
+  data := (controlBuffer[cmsgAlignOf(SizeofCmsghdr):])
+  bsinfo = (*SCTPSndInfo) (unsafe.Pointer(&data[0]))
+  bsinfo.Sid = sinfo.Sid
+
+  msg.Control = (*byte)(unsafe.Pointer(&controlBuffer[0]))
+  msg.SetControllen(len(controlBuffer))
+
+  msg.Iov = &iov
+	msg.Iovlen = 1
+	if err = sendmsg(fd, &msg, flags); err != nil {
+		return
+	}
+	return
+}
+
+func SCTPReceiveMessage(fd int, p []byte) (n int, from Sockaddr, rinfo *SCTPRcvInfo, flags int, err error) {
+
+  // Message header
+  var msg Msghdr
+  var rsa RawSockaddrAny
+  msg.Name = (*byte)(unsafe.Pointer(&rsa))
+  msg.Namelen = uint32(SizeofSockaddrAny)
+  // Create struct for message
+  var iov Iovec
+  if len(p) > 0 {
+    iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+    iov.SetLen(len(p))
+  }
+  msg.Iov = &iov
+  msg.Iovlen = 1
+
+  // Message control header
+  var cmsg *Cmsghdr
+
+  controlBuffer := make([]byte, SizeofCmsghdr + SizeofSCTPRcvInfo)
+  cdata := (controlBuffer[:])
+  cmsg = (*Cmsghdr)(unsafe.Pointer(&cdata[0]))
+  msg.Control = (*byte)(unsafe.Pointer(&controlBuffer[0]))
+  msg.SetControllen(len(controlBuffer))
+
+  flags = 0;
+  n, err = recvmsg(fd, &msg, flags)
+
+  if cmsg.Type == SCTP_RCVINFO {
+    data := (controlBuffer[cmsgAlignOf(SizeofCmsghdr):])
+    rinfo = (*SCTPRcvInfo)(unsafe.Pointer(&data[0]))
+  }
+
+  if err != nil {
+    return 0, nil, nil, 0, err
+  }
+  from, err = anyToSockaddr(&rsa)
+  return
+}
+
+func SetsockoptSCTPInitMsg(fd, level, opt int, sinit *SCTPInitMsg) (err error) {
+  return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(sinit)), unsafe.Sizeof(*sinit))
+}
+
